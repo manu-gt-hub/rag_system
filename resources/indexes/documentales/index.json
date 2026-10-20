@@ -1,0 +1,502 @@
+{
+  "documentales": [
+    {
+      "titulo": "Blood coltan by Gondor",
+      "año": null,
+      "archivo": "Documentales/Blood coltan sub Esp by Gondor.avi",
+      "extension": ".avi",
+      "tmdb_id": 1182467,
+      "titulo_oficial": "Blood Coltan",
+      "genero": null,
+      "sinopsis": null,
+      "actores": null,
+      "director": null,
+      "rating": 0.0,
+      "rating_votos": 0,
+      "poster_url": null,
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "chernobyl, la noche del fin del mundo",
+      "año": null,
+      "archivo": "Documentales/chernobyl, la noche del fin del mundo.avi",
+      "extension": ".avi"
+    },
+    {
+      "titulo": "Citizenfour 2014",
+      "año": 2014,
+      "archivo": "Documentales/Citizenfour 2014.avi",
+      "extension": ".avi",
+      "tmdb_id": 293310,
+      "titulo_oficial": "Citizenfour",
+      "genero": "Documental",
+      "sinopsis": "En 2013, el analista informático Edward Snowden filtró documentos clasificados que había obtenido de la NSA,  la Agencia de Seguridad Nacional Norteamericana, detallando la vigilancia que el gobierno estadounidense ejerce sobre sus ciudadanos. Después de pasar a la clandestinidad para evitar la extadición y el arresto, Snowden pasó a convertirse en noticia. Tanto que su notoriedad amenazaba con eclipsar las implicaciones de la información que había revelado.",
+      "actores": [
+        "Edward Snowden",
+        "Glenn Greenwald",
+        "Laura Poitras",
+        "William Binney",
+        "Barack Obama",
+        "Jacob Appelbaum",
+        "Julian Assange",
+        "Jeremy Scahill"
+      ],
+      "director": "Laura Poitras",
+      "rating": 7.734,
+      "rating_votos": 1448,
+      "poster_url": "https://image.tmdb.org/t/p/w500/nOVhX69EAxtSKEEnr5UcSd5UVci.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Earthlings",
+      "año": 2005,
+      "archivo": "Documentales/Earthlings-spanish.avi",
+      "extension": ".avi",
+      "tmdb_id": 30238,
+      "titulo_oficial": "Earthlings",
+      "genero": "Documental",
+      "sinopsis": "Earthlings es un aclamado documental acerca de cómo nuestra especie utiliza actualmente a otras especies animales. Para ello se utilizan cámaras ocultas e imágenes del día a día de las prácticas de algunas de las más grandes industrias del mundo que se enriquecen con los animales. El documental está dividido en cinco partes: mascotas, alimentación, pieles, entretenimiento y experimentación. La finalidad del documental es la denuncia de las actividades especistas a las cuales la mayoría de la población está habituada y cuyo tipo de discriminación se ha normalizado hasta la fecha.",
+      "actores": [
+        "Joaquin Phoenix"
+      ],
+      "director": "Shaun Monson",
+      "rating": 8.122,
+      "rating_votos": 348,
+      "poster_url": "https://image.tmdb.org/t/p/w500/fcRUYYyDWLJPlX7D6RPtQwdU7G2.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "El juego de la muerte",
+      "año": 1987,
+      "archivo": "Documentales/El juego de la muerte.avi",
+      "extension": ".avi",
+      "tmdb_id": 678768,
+      "titulo_oficial": "El juego de la muerte",
+      "genero": null,
+      "sinopsis": null,
+      "actores": [
+        "Valentín Trujillo",
+        "Blanca Guerra",
+        "Víctor Junco"
+      ],
+      "director": "Alfredo Gurrola",
+      "rating": 6.0,
+      "rating_votos": 4,
+      "poster_url": "https://image.tmdb.org/t/p/w500/4EtdSlvmwfRmEX2TAeyaTgJBVWu.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "El Legado Toxico De Vietnam",
+      "año": null,
+      "archivo": "Documentales/El Legado Toxico De Vietnam.avi",
+      "extension": ".avi"
+    },
+    {
+      "titulo": "Farenheit 9 11 Michael Moore",
+      "año": null,
+      "archivo": "Documentales/Farenheit 9-11 - Michael Moore.avi",
+      "extension": ".avi"
+    },
+    {
+      "titulo": "Free solo",
+      "año": 2018,
+      "archivo": "Documentales/Free solo.mkv",
+      "extension": ".mkv",
+      "tmdb_id": 515042,
+      "titulo_oficial": "Free Solo",
+      "genero": "Documental, Aventura",
+      "sinopsis": "Documental que narra la hazaña de Alex Honnold al escalar sin ningún tipo de ayuda la formación rocosa vertical \"El Capitán\", ubicada dentro del Parque Nacional Yosemite (Mariposa County, Estados Unidos), de unos 900 metros de altura. Fue el primer escalador en lograrlo.",
+      "actores": [
+        "Alex Honnold",
+        "Tommy Caldwell",
+        "Jimmy Chin",
+        "Sanni McCandless",
+        "Mikey Schaefer",
+        "Cheyne Lempe",
+        "Mark Synnott",
+        "Peter Croft"
+      ],
+      "director": "Jimmy Chin, Elizabeth Chai Vasarhelyi",
+      "rating": 7.899,
+      "rating_votos": 1575,
+      "poster_url": "https://image.tmdb.org/t/p/w500/v4QfYZMACODlWul9doN9RxE99ag.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Inside Job 2010",
+      "año": 2010,
+      "archivo": "Documentales/Inside.Job.2010.mp4",
+      "extension": ".mp4",
+      "tmdb_id": 44639,
+      "titulo_oficial": "Inside Job",
+      "genero": "Documental, Crimen",
+      "sinopsis": "Documental no sólo sobre las causas, sino también sobre los responsables de la crisis económica mundial de 2008, que signíficó la ruina de millones de personas que perdieron sus hogares y empleos, y, además, puso en peligro la estabilidad económica de los países desarrollados. A través de una extensa investigación y de entrevistas a financieros, políticos y periodistas, se muestra el auge de empresarios sin escrúpulos y la degradación de la política y la educación.",
+      "actores": [
+        "Matt Damon",
+        "Bill Ackman",
+        "Jonathan Alpert",
+        "Christine Lagarde",
+        "Daniel Alpert",
+        "Sigridur Benediktsdottir",
+        "Gylfi Zoega",
+        "Andri Snær Magnason"
+      ],
+      "director": "Charles Ferguson",
+      "rating": 7.71,
+      "rating_votos": 1075,
+      "poster_url": "https://image.tmdb.org/t/p/w500/iQNan0jUyZIkfMmhytPeGCCAfJI.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "La Vida Sin Nosotros",
+      "año": 2008,
+      "archivo": "Documentales/La Vida Sin Nosotros.avi",
+      "extension": ".avi",
+      "tmdb_id": 23190,
+      "titulo_oficial": "La vida sin nosotros",
+      "genero": "Documental, Película de TV",
+      "sinopsis": "En este documental especial que inspiró una serie de televisión de dos temporadas, científicos y otros expertos especulan sobre cómo sería la Tierra, la vida animal y la vida vegetal si, de repente, la humanidad ya no existiera, así como el efecto que la desaparición de la humanidad podría tener en los aspectos artificiales de la civilización.",
+      "actores": [
+        "Struan Rodger",
+        "John Anderson",
+        "David Brin",
+        "Bill Bruninga",
+        "Ron Chesser",
+        "Dr. Howard Oliver"
+      ],
+      "director": "David De Vries",
+      "rating": 7.039,
+      "rating_votos": 103,
+      "poster_url": "https://image.tmdb.org/t/p/w500/vDeK0Oc3SsxbfKjXWKH8XIChcLA.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Snowden",
+      "año": 2016,
+      "archivo": "Documentales/Snowden (HDRip) (EliteTorrent.net).avi",
+      "extension": ".avi",
+      "tmdb_id": 302401,
+      "titulo_oficial": "Snowden",
+      "genero": "Drama, Historia, Crimen, Suspense",
+      "sinopsis": "Basada en el libro \"The Snowden files. The inside story of the world's most wanted man\" escrito por Luke Harding, y en un libro escrito por Anatoly Kucherena, el abogado ruso de Edward Snowden. Narra los acontecimientos que acompañaron la publicación por parte del diario The Guardian de los documentos clasificados que aportó Edward Snowden sobre el programa de vigilancia mundial secreto de la NSA (Agencia de Seguridad Nacional) en 2013.",
+      "actores": [
+        "Joseph Gordon-Levitt",
+        "Shailene Woodley",
+        "Melissa Leo",
+        "Zachary Quinto",
+        "Tom Wilkinson",
+        "Scott Eastwood",
+        "Timothy Olyphant",
+        "Ben Schnetzer"
+      ],
+      "director": "Oliver Stone",
+      "rating": 7.115,
+      "rating_votos": 4785,
+      "poster_url": "https://image.tmdb.org/t/p/w500/mMOu9DhZ4Bt6OpIMyfduU5dBRKx.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "The Corporation La Corporación Completa 1 2 3 Noam Chomsky Naomi Klein Michael Moore",
+      "año": null,
+      "archivo": "Documentales/The Corporation La Corporación (Español Spanish) Completa 1-2-3 Noam Chomsky Naomi Klein Michael Moore.avi",
+      "extension": ".avi"
+    },
+    {
+      "titulo": "Underground La Historia De Julian Assange",
+      "año": 2012,
+      "archivo": "Documentales/Underground.La.Historia.De.Julian.Assange.avi",
+      "extension": ".avi",
+      "tmdb_id": 136698,
+      "titulo_oficial": "Underground. La historia de Julian Assange",
+      "genero": "Drama",
+      "sinopsis": "Un vistazo a los primeros años de carrera del fundador de Wikileaks, Julian Assange. En 1989 Assange, también conocido como 'Mendax', formó junto a dos amigos suyos un grupo de hackers llamado 'Subversivos Internacionales'. Consiguieron entrar en muchas de las organizaciones más poderosas y secretas del mundo. Eran jóvenes, brillantes y a los ojos del gobierno estadounidense, una gran amenaza para la seguridad nacional.",
+      "actores": [
+        "Callan McAuliffe",
+        "Anthony LaPaglia",
+        "Alex Williams",
+        "Laura Wheelwright",
+        "Rachel Griffiths",
+        "Nick Mitchell",
+        "Jeffery Richards",
+        "Jordan Raskopoulos"
+      ],
+      "director": "Robert Connolly",
+      "rating": 6.296,
+      "rating_votos": 54,
+      "poster_url": "https://image.tmdb.org/t/p/w500/cCb6dVEy0OzHaEDVPOF8kNxxAqN.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Zeitgeist",
+      "año": 2007,
+      "archivo": "Documentales/Zeitgeist.avi",
+      "extension": ".avi",
+      "tmdb_id": 13016,
+      "titulo_oficial": "Zeitgeist",
+      "genero": "Documental, Historia",
+      "sinopsis": "Controvertido documental que relaciona el Cristianismo, el 11-S y la Reserva Federal Americana. De distribución exclusiva por Internet pero disponible en algunos países ya en DVD, obtuvo excelentes críticas por parte de los internautas y otras muy negativas que ponían en liza la poca fiabilidad de algunas de las cosas que se contaban. No confundir con \"American Zeitgeist\", documental de Rob McGann del año 2006, estrenado en cines y que aborda un tema parecido.",
+      "actores": [
+        "Chögyam Trungpa",
+        "Jordan Maxwell",
+        "George Carlin",
+        "Bill Hicks",
+        "David Ray Griffin",
+        "Joseph Casaliggi"
+      ],
+      "director": "Peter Joseph",
+      "rating": 6.949,
+      "rating_votos": 558,
+      "poster_url": "https://image.tmdb.org/t/p/w500/4eJQJ3tvnNO7CdxXT5awnd9ovGX.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "1 Cadaveres",
+      "año": 2023,
+      "archivo": "Documentales/La vida sin nosotros/1- Cadaveres.mkv",
+      "extension": ".mkv",
+      "tmdb_id": 233629,
+      "titulo_oficial": "Cadáveres",
+      "genero": "Crimen, Misterio, Sci-Fi & Fantasy, Drama",
+      "sinopsis": "Cuatro investigadores. Cuatro épocas. Un cadáver. Si quieren salvar el futuro de Gran Bretaña, antes tendrán que resolver el asesinato que cambió el curso de la historia.",
+      "actores": [
+        "Jacob Fortune-Lloyd",
+        "Shira Haas",
+        "Amaka Okafor",
+        "Kyle Soller",
+        "Greta Scacchi",
+        "Stephen Graham",
+        "Tom Mothersdale",
+        "Synnøve Karlsen"
+      ],
+      "director": "Paul Tomalin",
+      "rating": 7.116,
+      "rating_votos": 593,
+      "poster_url": "https://image.tmdb.org/t/p/w500/qoFkjFwSb4NM6ZHpIZW9iKgXA4e.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "10 Las aguas de la muerte",
+      "año": null,
+      "archivo": "Documentales/La vida sin nosotros/10- Las aguas de la muerte.mkv",
+      "extension": ".mkv"
+    },
+    {
+      "titulo": "2 Estallido",
+      "año": 1995,
+      "archivo": "Documentales/La vida sin nosotros/2- Estallido.mkv",
+      "extension": ".mkv",
+      "tmdb_id": 6950,
+      "titulo_oficial": "Estallido",
+      "genero": "Acción, Drama, Ciencia ficción, Suspense",
+      "sinopsis": "El ejército de los Estados Unidos arrasa un campamento del Zaire en el que un virus mortal semejante al ébola estaba acabando con la población. Lo que se pretendía con esta medida era mantener el virus en secreto y, al mismo tiempo, impedir que se propagase. Lo que no estaba previsto era que un pequeño mono, portador del peligroso virus, viajara en un barco desde el Zaire a EE.UU. El pánico se desata cuando se descubre que todos los que que han estado en contacto con el simio empiezan a mostrar los primeros síntomas de la enfermedad.",
+      "actores": [
+        "Dustin Hoffman",
+        "Rene Russo",
+        "Morgan Freeman",
+        "Kevin Spacey",
+        "Cuba Gooding Jr.",
+        "Donald Sutherland",
+        "Patrick Dempsey",
+        "Zakes Mokae"
+      ],
+      "director": "Wolfgang Petersen",
+      "rating": 6.591,
+      "rating_votos": 2589,
+      "poster_url": "https://image.tmdb.org/t/p/w500/yxe9MSuSjXDH676Al1Sg6JEzejq.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "3 Amenaza capital",
+      "año": null,
+      "archivo": "Documentales/La vida sin nosotros/3- Amenaza capital.mkv",
+      "extension": ".mkv"
+    },
+    {
+      "titulo": "4 Metales pesados",
+      "año": null,
+      "archivo": "Documentales/La vida sin nosotros/4- Metales pesados.mkv",
+      "extension": ".mkv"
+    },
+    {
+      "titulo": "5 Patrimonio cultural",
+      "año": null,
+      "archivo": "Documentales/La vida sin nosotros/5- Patrimonio cultural.mkv",
+      "extension": ".mkv"
+    },
+    {
+      "titulo": "6 Fuertes y debiles",
+      "año": null,
+      "archivo": "Documentales/La vida sin nosotros/6- Fuertes y debiles.mkv",
+      "extension": ".mkv"
+    },
+    {
+      "titulo": "7 Los Invasores",
+      "año": 2016,
+      "archivo": "Documentales/La vida sin nosotros/7- Los Invasores.mkv",
+      "extension": ".mkv",
+      "tmdb_id": 883442,
+      "titulo_oficial": "Los invasores",
+      "genero": "Comedia, Drama",
+      "sinopsis": null,
+      "actores": [
+        "Taiel Pons",
+        "Pilar Menicocci"
+      ],
+      "director": "Juan Francisco Zini",
+      "rating": 0.0,
+      "rating_votos": 0,
+      "poster_url": "https://image.tmdb.org/t/p/w500/tCJTN2RvmjkgBd38CyScqfdOWHI.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "8 El fin de la ciudad del pecado",
+      "año": null,
+      "archivo": "Documentales/La vida sin nosotros/8- El fin de la ciudad del pecado.mkv",
+      "extension": ".mkv"
+    },
+    {
+      "titulo": "9 Carretera a ninguna parte",
+      "año": null,
+      "archivo": "Documentales/La vida sin nosotros/9- Carretera a ninguna parte.mkv",
+      "extension": ".mkv"
+    },
+    {
+      "titulo": "Roswell veredicto final",
+      "año": 2021,
+      "archivo": "Documentales/Roswell veredicto final/Roswell  veredicto final - Temporada 1 [HDTV 720p][Cap.101][AC3 5.1 Castellano][www.atomixHQ.one].mkv",
+      "extension": ".mkv",
+      "tmdb_id": 128236,
+      "titulo_oficial": "Roswell: Veredicto final",
+      "genero": "Documental",
+      "sinopsis": "En 1947, un ranchero cerca de Roswell, Nuevo México, afirmó haber descubierto escombros misteriosos en su propiedad, lo que provocó décadas de negaciones oficiales del gobierno e innumerables teorías de conspiración sobre extraterrestres. Ahora, las cintas de inquietantes relatos en primera persona del pasado se están analizando de una manera totalmente moderna, utilizando un software de detección de mentiras de inteligencia artificial (AI) para probar si los testigos oculares están diciendo la verdad. Aunque la mayoría de los testigos ya han fallecido, la IA permite separar la verdad de la ficción y el evento OVNI más importante de la historia mundial se puede sopesar en la balanza con todas las pruebas disponibles. Los buscadores de la verdad decidirán ahora... el veredicto final.",
+      "actores": [
+        "Anthony D. Call",
+        "Ben Hansen",
+        "Adam Oakley",
+        "Paul Andrew Goldsmith"
+      ],
+      "director": null,
+      "rating": 7.769,
+      "rating_votos": 13,
+      "poster_url": "https://image.tmdb.org/t/p/w500/rGZ63B3mTABb9eRb73PFG36B4Fc.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Roswell veredicto final",
+      "año": 2021,
+      "archivo": "Documentales/Roswell veredicto final/Roswell  veredicto final - Temporada 1 [HDTV 720p][Cap.102][AC3 5.1 Castellano][www.atomixHQ.one].mkv",
+      "extension": ".mkv",
+      "tmdb_id": 128236,
+      "titulo_oficial": "Roswell: Veredicto final",
+      "genero": "Documental",
+      "sinopsis": "En 1947, un ranchero cerca de Roswell, Nuevo México, afirmó haber descubierto escombros misteriosos en su propiedad, lo que provocó décadas de negaciones oficiales del gobierno e innumerables teorías de conspiración sobre extraterrestres. Ahora, las cintas de inquietantes relatos en primera persona del pasado se están analizando de una manera totalmente moderna, utilizando un software de detección de mentiras de inteligencia artificial (AI) para probar si los testigos oculares están diciendo la verdad. Aunque la mayoría de los testigos ya han fallecido, la IA permite separar la verdad de la ficción y el evento OVNI más importante de la historia mundial se puede sopesar en la balanza con todas las pruebas disponibles. Los buscadores de la verdad decidirán ahora... el veredicto final.",
+      "actores": [
+        "Anthony D. Call",
+        "Ben Hansen",
+        "Adam Oakley",
+        "Paul Andrew Goldsmith"
+      ],
+      "director": null,
+      "rating": 7.769,
+      "rating_votos": 13,
+      "poster_url": "https://image.tmdb.org/t/p/w500/rGZ63B3mTABb9eRb73PFG36B4Fc.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Roswell veredicto final",
+      "año": 2021,
+      "archivo": "Documentales/Roswell veredicto final/Roswell  veredicto final - Temporada 1 [HDTV 720p][Cap.103][AC3 5.1 Castellano][www.atomixHQ.one].mkv",
+      "extension": ".mkv",
+      "tmdb_id": 128236,
+      "titulo_oficial": "Roswell: Veredicto final",
+      "genero": "Documental",
+      "sinopsis": "En 1947, un ranchero cerca de Roswell, Nuevo México, afirmó haber descubierto escombros misteriosos en su propiedad, lo que provocó décadas de negaciones oficiales del gobierno e innumerables teorías de conspiración sobre extraterrestres. Ahora, las cintas de inquietantes relatos en primera persona del pasado se están analizando de una manera totalmente moderna, utilizando un software de detección de mentiras de inteligencia artificial (AI) para probar si los testigos oculares están diciendo la verdad. Aunque la mayoría de los testigos ya han fallecido, la IA permite separar la verdad de la ficción y el evento OVNI más importante de la historia mundial se puede sopesar en la balanza con todas las pruebas disponibles. Los buscadores de la verdad decidirán ahora... el veredicto final.",
+      "actores": [
+        "Anthony D. Call",
+        "Ben Hansen",
+        "Adam Oakley",
+        "Paul Andrew Goldsmith"
+      ],
+      "director": null,
+      "rating": 7.769,
+      "rating_votos": 13,
+      "poster_url": "https://image.tmdb.org/t/p/w500/rGZ63B3mTABb9eRb73PFG36B4Fc.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Roswell veredicto final",
+      "año": 2021,
+      "archivo": "Documentales/Roswell veredicto final/Roswell  veredicto final - Temporada 1 [HDTV 720p][Cap.104][AC3 5.1 Castellano][www.atomixHQ.one].mkv",
+      "extension": ".mkv",
+      "tmdb_id": 128236,
+      "titulo_oficial": "Roswell: Veredicto final",
+      "genero": "Documental",
+      "sinopsis": "En 1947, un ranchero cerca de Roswell, Nuevo México, afirmó haber descubierto escombros misteriosos en su propiedad, lo que provocó décadas de negaciones oficiales del gobierno e innumerables teorías de conspiración sobre extraterrestres. Ahora, las cintas de inquietantes relatos en primera persona del pasado se están analizando de una manera totalmente moderna, utilizando un software de detección de mentiras de inteligencia artificial (AI) para probar si los testigos oculares están diciendo la verdad. Aunque la mayoría de los testigos ya han fallecido, la IA permite separar la verdad de la ficción y el evento OVNI más importante de la historia mundial se puede sopesar en la balanza con todas las pruebas disponibles. Los buscadores de la verdad decidirán ahora... el veredicto final.",
+      "actores": [
+        "Anthony D. Call",
+        "Ben Hansen",
+        "Adam Oakley",
+        "Paul Andrew Goldsmith"
+      ],
+      "director": null,
+      "rating": 7.769,
+      "rating_votos": 13,
+      "poster_url": "https://image.tmdb.org/t/p/w500/rGZ63B3mTABb9eRb73PFG36B4Fc.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Roswell veredicto final",
+      "año": 2021,
+      "archivo": "Documentales/Roswell veredicto final/Roswell  veredicto final - Temporada 1 [HDTV 720p][Cap.105][AC3 5.1 Castellano][www.atomixHQ.one].mkv",
+      "extension": ".mkv",
+      "tmdb_id": 128236,
+      "titulo_oficial": "Roswell: Veredicto final",
+      "genero": "Documental",
+      "sinopsis": "En 1947, un ranchero cerca de Roswell, Nuevo México, afirmó haber descubierto escombros misteriosos en su propiedad, lo que provocó décadas de negaciones oficiales del gobierno e innumerables teorías de conspiración sobre extraterrestres. Ahora, las cintas de inquietantes relatos en primera persona del pasado se están analizando de una manera totalmente moderna, utilizando un software de detección de mentiras de inteligencia artificial (AI) para probar si los testigos oculares están diciendo la verdad. Aunque la mayoría de los testigos ya han fallecido, la IA permite separar la verdad de la ficción y el evento OVNI más importante de la historia mundial se puede sopesar en la balanza con todas las pruebas disponibles. Los buscadores de la verdad decidirán ahora... el veredicto final.",
+      "actores": [
+        "Anthony D. Call",
+        "Ben Hansen",
+        "Adam Oakley",
+        "Paul Andrew Goldsmith"
+      ],
+      "director": null,
+      "rating": 7.769,
+      "rating_votos": 13,
+      "poster_url": "https://image.tmdb.org/t/p/w500/rGZ63B3mTABb9eRb73PFG36B4Fc.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Roswell veredicto final",
+      "año": 2021,
+      "archivo": "Documentales/Roswell veredicto final/Roswell  veredicto final - Temporada 1 [HDTV 720p][Cap.106][AC3 5.1 Castellano][www.atomixHQ.one].mkv",
+      "extension": ".mkv",
+      "tmdb_id": 128236,
+      "titulo_oficial": "Roswell: Veredicto final",
+      "genero": "Documental",
+      "sinopsis": "En 1947, un ranchero cerca de Roswell, Nuevo México, afirmó haber descubierto escombros misteriosos en su propiedad, lo que provocó décadas de negaciones oficiales del gobierno e innumerables teorías de conspiración sobre extraterrestres. Ahora, las cintas de inquietantes relatos en primera persona del pasado se están analizando de una manera totalmente moderna, utilizando un software de detección de mentiras de inteligencia artificial (AI) para probar si los testigos oculares están diciendo la verdad. Aunque la mayoría de los testigos ya han fallecido, la IA permite separar la verdad de la ficción y el evento OVNI más importante de la historia mundial se puede sopesar en la balanza con todas las pruebas disponibles. Los buscadores de la verdad decidirán ahora... el veredicto final.",
+      "actores": [
+        "Anthony D. Call",
+        "Ben Hansen",
+        "Adam Oakley",
+        "Paul Andrew Goldsmith"
+      ],
+      "director": null,
+      "rating": 7.769,
+      "rating_votos": 13,
+      "poster_url": "https://image.tmdb.org/t/p/w500/rGZ63B3mTABb9eRb73PFG36B4Fc.jpg",
+      "fuente_metadatos": "TMDB"
+    },
+    {
+      "titulo": "Tierra Cd1",
+      "año": null,
+      "archivo": "Documentales/Tierra (DVDRip) (EliteTorrent.net)/Tierra - Cd1 (DVDRip) (EliteTorrent.net).avi",
+      "extension": ".avi"
+    },
+    {
+      "titulo": "Tierra Cd2",
+      "año": null,
+      "archivo": "Documentales/Tierra (DVDRip) (EliteTorrent.net)/Tierra - Cd2 (DVDRip) (EliteTorrent.net).avi",
+      "extension": ".avi"
+    }
+  ]
+}

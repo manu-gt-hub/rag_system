@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG System — Catálogo Multimedia</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f; color: #e0e0e0;
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+            padding: 2rem 1rem;
+        }
+        h1 { color: #4fc3f7; margin-bottom: 0.5rem; font-size: 1.8rem; }
+        .subtitle { color: #888; margin-bottom: 2rem; font-size: 0.95rem; }
+        .container { width: 100%; max-width: 800px; }
+
+        /* Formulario */
+        .search-box {
+            background: #1a1a2e; border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 1.5rem; border: 1px solid #2a2a4a;
+        }
+        .search-box textarea {
+            width: 100%; background: #0f0f1a; border: 1px solid #333;
+            border-radius: 8px; padding: 0.8rem; color: #e0e0e0;
+            font-size: 1rem; resize: vertical; min-height: 60px;
+        }
+        .search-box textarea:focus { outline: none; border-color: #4fc3f7; }
+        .controls {
+            display: flex; gap: 1rem; margin-top: 1rem; align-items: center;
+            flex-wrap: wrap;
+        }
+        select {
+            background: #0f0f1a; color: #e0e0e0; border: 1px solid #333;
+            border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.9rem;
+        }
+        button {
+            background: #4fc3f7; color: #000; border: none; border-radius: 8px;
+            padding: 0.6rem 2rem; font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        button:hover { background: #29b6f6; }
+        button:disabled { background: #555; cursor: not-allowed; }
+        .spinner { display: none; margin-left: 0.5rem; }
+        .spinner.active { display: inline-block; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Resultados */
+        .result-box {
+            background: #1a1a2e; border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 1rem; border: 1px solid #2a2a4a;
+            display: none;
+        }
+        .result-box.visible { display: block; }
+        .answer { line-height: 1.6; margin-bottom: 1rem; white-space: pre-wrap; }
+        .meta { color: #888; font-size: 0.85rem; margin-bottom: 1rem; }
+        .doc-card {
+            background: #0f0f1a; border-radius: 8px; padding: 1rem;
+            margin-bottom: 0.5rem; border-left: 3px solid #4fc3f7;
+        }
+        .doc-card .doc-title { font-weight: 600; color: #4fc3f7; }
+        .doc-card .doc-info { color: #aaa; font-size: 0.85rem; margin-top: 0.3rem; }
+        .error { color: #ef5350; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 RAG System</h1>
+        <p class="subtitle">Consulta tu catálogo multimedia con IA</p>
+
+        <div class="search-box">
+            <textarea id="question" placeholder="Escribe tu pregunta... Ej: ¿Qué películas de ciencia ficción tengo con Tom Cruise?"></textarea>
+            <div class="controls">
+                <select id="category">
+                    <option value="todas">Todas las categorías</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}">{{ cat|capitalize }}</option>
+                    {% endfor %}
+                </select>
+                <button id="btn-search" onclick="doSearch()">
+                    Buscar <span id="spinner" class="spinner">↻</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="result" class="result-box">
+            <h3 style="margin-bottom:0.8rem; color:#4fc3f7;">Respuesta</h3>
+            <div id="answer" class="answer"></div>
+            <div id="meta" class="meta"></div>
+            <h4 style="margin-bottom:0.5rem; color:#aaa;">Documentos de contexto</h4>
+            <div id="docs"></div>
+        </div>
+    </div>
+
+    <script>
+        async function doSearch() {
+            const question = document.getElementById('question').value.trim();
+            if (!question) return;
+
+            const category = document.getElementById('category').value;
+            const btn = document.getElementById('btn-search');
+            const spinner = document.getElementById('spinner');
+            const resultBox = document.getElementById('result');
+
+            btn.disabled = true;
+            spinner.classList.add('active');
+            resultBox.classList.remove('visible');
+
+            try {
+                const resp = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ question, category })
+                });
+                const data = await resp.json();
+
+                if (data.error) {
+                    document.getElementById('answer').innerHTML =
+                        `<span class="error">${data.error}</span>`;
+                    document.getElementById('meta').textContent = '';
+                    document.getElementById('docs').innerHTML = '';
+                } else {
+                    document.getElementById('answer').textContent = data.answer;
+                    document.getElementById('meta').textContent =
+                        `Proveedor: ${data.provider} | Tiempo: ${data.elapsed_seconds}s | ` +
+                        `Docs: ${data.num_docs_retrieved} | Top score: ${data.top_score}`;
+
+                    const docsHtml = (data.docs || []).map(d =>
+                        `<div class="doc-card">
+                            <div class="doc-title">${d.title}</div>
+                            <div class="doc-info">${d.category} — score: ${d.score}</div>
+                        </div>`
+                    ).join('');
+                    document.getElementById('docs').innerHTML = docsHtml;
+                }
+                resultBox.classList.add('visible');
+            } catch (e) {
+                document.getElementById('answer').innerHTML =
+                    `<span class="error">Error de conexión: ${e.message}</span>`;
+                resultBox.classList.add('visible');
+            } finally {
+                btn.disabled = false;
+                spinner.classList.remove('active');
+            }
+        }
+
+        document.getElementById('question').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSearch(); }
+        });
+    </script>
+</body>
+</html>
