@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-from src.config import RESULTS_DIR, TESTS_DIR
+from src.config import LLM_KEY_CONFIGURED, LLM_PROVIDER, RESULTS_DIR, TESTS_DIR
 from src.rag_pipeline import RAGPipeline
 
 logger = logging.getLogger(__name__)
@@ -268,6 +269,20 @@ def run_evaluation() -> None:
         test_data = json.load(f)
     tests = test_data["tests"]
     logger.info("Loaded %d tests from %s", len(tests), test_file)
+
+    # Without an LLM key the evaluation cannot run: warn, but do not fail
+    if not LLM_KEY_CONFIGURED:
+        message = (
+            f"Evaluation skipped: no API key for LLM provider '{LLM_PROVIDER}'. "
+            "Set the OPENAI_API_KEY or ANTHROPIC_API_KEY secret to run it."
+        )
+        logger.warning(message)
+        if os.getenv("GITHUB_ACTIONS") == "true":
+            print(f"::warning title=RAG evaluation skipped::{message}")
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(RESULTS_DIR / "evaluation_results.md", "w", encoding="utf-8") as f:
+            f.write(f"# RAG System Evaluation Report\n\n⚠️ {message}\n")
+        return
 
     # Initialize pipeline
     pipeline = RAGPipeline()
