@@ -40,20 +40,20 @@ generated answer (case-insensitive). Calculated as `keywords_found / keywords_ex
 | 0% | Does not answer the question or erroneously says "no information available" |
 
 **How it is measured**: Verifies the answer does not contain rejection phrases
-("no tengo información", "no encuentro") when data is actually available.
+("I don't have enough information", "couldn't find") when data is actually available.
 Also checks minimum expected length.
 
 ## 4. Format and Clarity (0-100%)
 
 | Score | Criteria |
 |---|---|
-| 100% | Response in Spanish, well structured, correctly cites titles |
+| 100% | Response in the language of the question, well structured, correctly cites titles |
 | 75% | Good structure but with minor formatting issues |
 | 50% | Readable but disorganized |
 | 25% | Hard to follow |
 | 0% | Incoherent or in the wrong language |
 
-**How it is measured**: Checks for Spanish language, presence of cited titles,
+**How it is measured**: Checks the answer is in English (Spanish is also accepted), presence of cited titles,
 and reasonable length (neither too short nor excessively long).
 
 ## Global Score

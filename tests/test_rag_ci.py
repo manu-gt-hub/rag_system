@@ -2,7 +2,7 @@
 test_rag_ci.py — Pytest tests runnable from GitHub Actions.
 
 Wraps the RAG evaluation and asserts against the acceptance
-thresholds defined in doc/rubricas.md.
+thresholds defined in doc/rubrics.md.
 
 Runnable as:
     pytest tests/test_rag_ci.py -v
@@ -20,20 +20,20 @@ import pytest
 from src.config import TESTS_DIR
 from src.rag_pipeline import RAGPipeline
 from tests.run_evaluation import (
-    eval_completitud,
-    eval_formato,
+    eval_completeness,
+    eval_format,
     eval_precision,
-    eval_relevancia,
+    eval_relevance,
     evaluate_single,
 )
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Acceptance thresholds (see doc/rubricas.md)
+# Acceptance thresholds (see doc/rubrics.md)
 # ---------------------------------------------------------------------------
 THRESHOLD_GLOBAL = 70.0          # Global accuracy >= 70%
-THRESHOLD_RELEVANCIA = 60.0      # Avg. relevance >= 60%
+THRESHOLD_RELEVANCE = 60.0      # Avg. relevance >= 60%
 THRESHOLD_PRECISION = 65.0       # Avg. precision >= 65%
 THRESHOLD_INDIVIDUAL_PRECISION = 0.0  # No question with 0% precision
 
@@ -45,6 +45,9 @@ THRESHOLD_INDIVIDUAL_PRECISION = 0.0  # No question with 0% precision
 @pytest.fixture(scope="module")
 def pipeline():
     """Initialize the RAG pipeline once for all tests in this module."""
+    from src.config import ANTHROPIC_API_KEY, LLM_PROVIDER, OPENAI_API_KEY
+    if not {"openai": OPENAI_API_KEY, "anthropic": ANTHROPIC_API_KEY}.get(LLM_PROVIDER):
+        pytest.skip(f"No API key for LLM provider '{LLM_PROVIDER}'")
     p = RAGPipeline()
     yield p
     p.close()
@@ -87,7 +90,7 @@ class TestIndividualQuestions:
         """No question should have 0% precision."""
         zero_precision = [
             r for r in evaluation_results
-            if r["rubricas"]["precision"] <= THRESHOLD_INDIVIDUAL_PRECISION
+            if r["rubrics"]["precision"] <= THRESHOLD_INDIVIDUAL_PRECISION
         ]
         if zero_precision:
             failed_ids = [r["id"] for r in zero_precision]
@@ -122,28 +125,28 @@ class TestIndividualQuestions:
 # ---------------------------------------------------------------------------
 
 class TestAggregateAccuracy:
-    """Verify global thresholds per doc/rubricas.md."""
+    """Verify global thresholds per doc/rubrics.md."""
 
     def test_global_accuracy_above_threshold(self, evaluation_results):
         """Accuracy global >= 70%."""
         n = len(evaluation_results)
-        avg_global = sum(r["rubricas"]["global"] for r in evaluation_results) / n
+        avg_global = sum(r["rubrics"]["global"] for r in evaluation_results) / n
         assert avg_global >= THRESHOLD_GLOBAL, (
             f"Global accuracy {avg_global:.1f}% < threshold {THRESHOLD_GLOBAL}%"
         )
 
-    def test_relevancia_above_threshold(self, evaluation_results):
-        """Relevancia media >= 60%."""
+    def test_relevance_above_threshold(self, evaluation_results):
+        """Avg. relevance >= 60%."""
         n = len(evaluation_results)
-        avg = sum(r["rubricas"]["relevancia"] for r in evaluation_results) / n
-        assert avg >= THRESHOLD_RELEVANCIA, (
-            f"Avg. relevance {avg:.1f}% < threshold {THRESHOLD_RELEVANCIA}%"
+        avg = sum(r["rubrics"]["relevance"] for r in evaluation_results) / n
+        assert avg >= THRESHOLD_RELEVANCE, (
+            f"Avg. relevance {avg:.1f}% < threshold {THRESHOLD_RELEVANCE}%"
         )
 
     def test_precision_above_threshold(self, evaluation_results):
-        """Precisión media >= 65%."""
+        """Avg. precision >= 65%."""
         n = len(evaluation_results)
-        avg = sum(r["rubricas"]["precision"] for r in evaluation_results) / n
+        avg = sum(r["rubrics"]["precision"] for r in evaluation_results) / n
         assert avg >= THRESHOLD_PRECISION, (
             f"Avg. precision {avg:.1f}% < threshold {THRESHOLD_PRECISION}%"
         )
@@ -151,7 +154,7 @@ class TestAggregateAccuracy:
     def test_pass_rate(self, evaluation_results):
         """At least 70% of questions must pass (>= 70% global)."""
         n = len(evaluation_results)
-        passed = sum(1 for r in evaluation_results if r["rubricas"]["global"] >= 70)
+        passed = sum(1 for r in evaluation_results if r["rubrics"]["global"] >= 70)
         rate = (passed / n) * 100
         assert rate >= 70, (
             f"Only {passed}/{n} ({rate:.0f}%) questions passed. Minimum: 70%"

@@ -2,10 +2,12 @@
 
 ## Overview
 
-RAG (Retrieval-Augmented Generation) system over a personal multimedia catalog.
-Uses pgvector as vector store, OpenAI/Anthropic embeddings and contextual
-response generation from JSON indexes of movies, books, series, music,
-video games and documentaries.
+RAG (Retrieval-Augmented Generation) recommendation chatbot over a personal
+multimedia catalog. Uses pgvector as vector store, OpenAI or local (fastembed)
+embeddings and OpenAI/Anthropic for response generation from JSON indexes of
+movies, books, series, music, video games and documentaries.
+
+Detailed architecture, diagrams and technology rationale: `doc/architecture.md`.
 
 ## Architecture
 
@@ -23,7 +25,7 @@ video games and documentaries.
                     ┌──────▼───────┐
                     │  Embeddings  │
                     │  (OpenAI /   │
-                    │   Anthropic) │
+                    │   local)     │
                     └──────────────┘
 ```
 
@@ -34,29 +36,36 @@ video games and documentaries.
   stores them in pgvector.
 - **Responsibilities**:
   - Parse each `index.json` (movies, books, series, music, video games, documentaries).
-  - Build documents combining title, synopsis, genre, director/author, actors.
-  - Generate embeddings via API (OpenAI `text-embedding-3-small` or Anthropic).
-  - Insert vectors into PostgreSQL with the pgvector extension.
+  - Build one semantic document per recommendable item: series are grouped by
+    show, music by artist/album folder, movies/games are deduplicated.
+  - Generate embeddings (OpenAI `text-embedding-3-small`, or the local
+    multilingual model when there is no OpenAI key).
+  - Insert vectors + Spanish `tsvector` into PostgreSQL/pgvector, build HNSW
+    and GIN indexes, and record the embedding signature in `index_meta`.
+  - `--if-needed` skips work when the index matches the current model.
 
 ### 2. Retriever Agent (`src/retriever.py`)
 - **Role**: Semantic search against pgvector.
 - **Responsibilities**:
   - Receive a user query.
-  - Generate query embedding.
-  - Execute cosine similarity search in pgvector.
+  - Generate query embedding with the same model used for indexing.
+  - Run cosine similarity search and Spanish full-text search in one SQL
+    query, fused with Reciprocal Rank Fusion.
   - Return the top-K most relevant documents with scores.
 
 ### 3. Generator Agent (`src/generator.py`)
 - **Role**: Generate responses using an LLM with retrieved context.
 - **Responsibilities**:
-  - Build prompt with context (retrieved documents) + question.
+  - Build recommendation prompt with context (retrieved documents),
+    conversation history and question.
   - Call OpenAI GPT-4o-mini or Anthropic Claude.
   - Return natural-language response with references.
 
 ### 4. RAG Pipeline (`src/rag_pipeline.py`)
 - **Role**: Orchestrator connecting Retriever → Generator.
 - **Responsibilities**:
-  - Receive user question.
+  - Receive user question and chat history.
+  - Enrich short follow-ups with the previous question; detect category.
   - Invoke retriever to obtain context.
   - Invoke generator with context + question.
   - Return final response with metadata (time, docs used, scores).
@@ -66,21 +75,21 @@ video games and documentaries.
 - **Responsibilities**:
   - Load question/expected-answer battery (`tests/test_questions.json`).
   - Execute each question through the pipeline.
-  - Evaluate accuracy with rubrics defined in `doc/rubricas.md`.
+  - Evaluate accuracy with rubrics defined in `doc/rubrics.md`.
   - Generate report in `results/evaluation_results.md`.
 
 ### 6. Web UI (`src/web_app.py`)
-- **Role**: Simple local web interface.
+- **Role**: Chat web interface.
 - **Responsibilities**:
-  - Serve question form.
+  - Serve the chat page (history kept client-side).
   - Display response + context documents + scores.
-  - `/api/query` endpoint for programmatic integration.
+  - `/api/chat` (with memory) and `/api/query` endpoints.
 
 ## Harness Engineering
 
 The harness engineering approach is applied as follows:
 
-1. **Defined rubrics** in `doc/rubricas.md` — objective criteria to evaluate
+1. **Defined rubrics** in `doc/rubrics.md` — objective criteria to evaluate
    relevance, precision, completeness and format of responses.
 2. **Test suite** in `tests/test_questions.json` — question battery with
    expected answers per category (movies, books, etc.).
@@ -91,13 +100,16 @@ The harness engineering approach is applied as follows:
 
 ## Configuration
 
-- Copy `.env.example` → `.env` and fill in API keys.
-- Run `bash setup.sh` to create venv and install dependencies.
-- PostgreSQL with pgvector extension must be available.
+- Copy `.env.example` → `.env` and fill in at least one API key.
+- `docker compose up --build` starts pgvector, indexes and serves on :8000.
+- Without Docker: `bash setup.sh`, a PostgreSQL with pgvector, then
+  `python -m src.indexer` and `python -m src.web_app`.
+- Unit tests without keys: `pytest tests/test_unit.py`.
 - See `README.md` for full instructions.
 
 ## LLM Provider
 
-Supports two providers (configurable via `LLM_PROVIDER` in `.env`):
+Supports two providers (`LLM_PROVIDER` in `.env`, auto-detected from keys):
 - **openai**: GPT-4o-mini for generation, text-embedding-3-small for embeddings.
-- **anthropic**: Claude 3.5 Haiku for generation (embeddings via OpenAI).
+- **anthropic**: Claude Haiku 4.5 for generation. Embeddings via OpenAI if its
+  key is present, otherwise the local fastembed model (`EMBEDDING_PROVIDER`).

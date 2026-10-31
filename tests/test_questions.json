@@ -1,35 +1,36 @@
 {
   "test_suite": "RAG System — Evaluation test suite",
-  "version": "1.0",
+  "version": "2.0",
+  "notes": "Questions are in English; titles in expected_docs are kept as they appear in the (Spanish) catalog.",
   "tests": [
     {
       "id": "PEL-001",
       "category": "peliculas",
-      "question": "¿Qué películas de ciencia ficción tengo con Tom Cruise?",
-      "expected_keywords": ["Al filo del mañana", "Tom Cruise", "ciencia ficción"],
+      "question": "Which science fiction movies with Tom Cruise do I have?",
+      "expected_keywords": ["Al filo del mañana", "Tom Cruise", "science fiction"],
       "expected_docs": ["Al filo del mañana"],
       "min_docs": 1
     },
     {
       "id": "PEL-002",
       "category": "peliculas",
-      "question": "¿Quién dirigió 300 y de qué trata?",
-      "expected_keywords": ["Zack Snyder", "300", "Esparta", "Leónidas"],
+      "question": "Who directed 300 and what is it about?",
+      "expected_keywords": ["Zack Snyder", "300", "Sparta", "Leonidas"],
       "expected_docs": ["300"],
       "min_docs": 1
     },
     {
       "id": "PEL-003",
       "category": "peliculas",
-      "question": "¿Qué películas de terror tengo?",
-      "expected_keywords": ["terror"],
+      "question": "What horror movies do I have?",
+      "expected_keywords": ["horror"],
       "expected_docs": ["28 años después", "28 semanas después", "Alone"],
       "min_docs": 2
     },
     {
       "id": "PEL-004",
       "category": "peliculas",
-      "question": "¿Qué valoración tiene la película Algunos hombres buenos?",
+      "question": "What rating does the movie Algunos hombres buenos have?",
       "expected_keywords": ["7.5", "Algunos hombres buenos", "Tom Cruise"],
       "expected_docs": ["Algunos hombres buenos"],
       "min_docs": 1
@@ -37,23 +38,23 @@
     {
       "id": "LIB-001",
       "category": "libros",
-      "question": "¿Qué libros de supervivencia tengo?",
-      "expected_keywords": ["supervivencia"],
+      "question": "What survival books do I have?",
+      "expected_keywords": ["survival"],
       "expected_docs": ["arboles comestibles", "como hacer fuego", "como hacer trampas"],
       "min_docs": 3
     },
     {
       "id": "LIB-002",
       "category": "libros",
-      "question": "¿Cómo se hace fuego según mis libros?",
-      "expected_keywords": ["fuego", "supervivencia"],
+      "question": "How do you make fire according to my books?",
+      "expected_keywords": ["fire", "survival"],
       "expected_docs": ["como hacer fuego"],
       "min_docs": 1
     },
     {
       "id": "LIB-003",
       "category": "libros",
-      "question": "¿Quién escribió 'el horticultor autosuficiente'?",
+      "question": "Who wrote 'el horticultor autosuficiente'?",
       "expected_keywords": ["Seymour", "horticultor"],
       "expected_docs": ["el horticultor autosuficiente"],
       "min_docs": 1
@@ -61,15 +62,15 @@
     {
       "id": "PEL-005",
       "category": "peliculas",
-      "question": "¿Qué película trata sobre robo de coches con Nicolas Cage?",
-      "expected_keywords": ["60 segundos", "Nicolas Cage", "coches"],
+      "question": "Which movie is about stealing cars with Nicolas Cage?",
+      "expected_keywords": ["60 segundos", "Nicolas Cage", "cars"],
       "expected_docs": ["60 segundos"],
       "min_docs": 1
     },
     {
       "id": "GEN-001",
       "category": null,
-      "question": "¿Qué contenido tengo de Danny Boyle?",
+      "question": "What content do I have by Danny Boyle?",
       "expected_keywords": ["28 años después", "Danny Boyle"],
       "expected_docs": ["28 años después"],
       "min_docs": 1
@@ -77,8 +78,8 @@
     {
       "id": "GEN-002",
       "category": null,
-      "question": "¿Qué contenido tengo sobre construir un iglú?",
-      "expected_keywords": ["iglú", "nieve", "bloques"],
+      "question": "What do I have about building an igloo?",
+      "expected_keywords": ["igloo", "snow", "blocks"],
       "expected_docs": ["construye un iglu"],
       "min_docs": 1
     }

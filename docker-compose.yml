@@ -1,0 +1,41 @@
+# Full stack: PostgreSQL + pgvector and the chatbot web app.
+#   cp .env.example .env    # add OPENAI_API_KEY and/or ANTHROPIC_API_KEY
+#   docker compose up --build
+#   open http://localhost:8000
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rag_system}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      # Exposed to the host only to run the scripts / tests outside Docker
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-rag_system}"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      FLASK_PORT: "8000"
+    ports:
+      - "${APP_HOST_PORT:-8000}:8000"
+    volumes:
+      - models:/models          # local embedding model cache
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  models:

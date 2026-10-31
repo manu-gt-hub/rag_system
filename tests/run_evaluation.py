@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 # Phrases that indicate an erroneous rejection
 REJECTION_PHRASES = [
+    "don't have enough information",
+    "do not have enough information",
+    "couldn't find",
+    "could not find",
+    "no information",
     "no tengo información",
     "no encuentro",
     "no dispongo",
@@ -34,7 +39,7 @@ REJECTION_PHRASES = [
 # Per-rubric evaluation functions
 # ---------------------------------------------------------------------------
 
-def eval_relevancia(retrieved_titles: List[str], expected_docs: List[str]) -> float:
+def eval_relevance(retrieved_titles: List[str], expected_docs: List[str]) -> float:
     """Rubric 1: Retrieval relevance (0.0 - 1.0)."""
     if not expected_docs:
         return 1.0
@@ -57,7 +62,7 @@ def eval_precision(answer: str, expected_keywords: List[str]) -> float:
     return found / len(expected_keywords)
 
 
-def eval_completitud(answer: str, has_expected_data: bool) -> float:
+def eval_completeness(answer: str, has_expected_data: bool) -> float:
     """Rubric 3: Completeness (0.0 - 1.0)."""
     # Penalize if it rejects when data is available
     answer_lower = answer.lower()
@@ -77,15 +82,17 @@ def eval_completitud(answer: str, has_expected_data: bool) -> float:
     return 0.75
 
 
-def eval_formato(answer: str) -> float:
+def eval_format(answer: str) -> float:
     """Rubric 4: Format and clarity (0.0 - 1.0)."""
     score = 0.0
 
-    # Spanish check: look for typical words
+    # Language check: the answer must be in the language of the question
+    # (English for the test battery); Spanish is accepted too.
+    english_indicators = ["the", "and", "of", "in", "is", "with", "for", "to", "a"]
     spanish_indicators = ["de", "el", "la", "en", "que", "es", "con", "por"]
     answer_words = answer.lower().split()
-    spanish_count = sum(1 for w in spanish_indicators if w in answer_words)
-    if spanish_count >= 3:
+    if any(sum(1 for w in words if w in answer_words) >= 3
+           for words in (english_indicators, spanish_indicators)):
         score += 0.5
 
     # Reasonable length (neither too short nor excessively long)
@@ -129,17 +136,17 @@ def evaluate_single(
     elapsed = time.time() - t0
 
     # Evaluate rubrics
-    relevancia = eval_relevancia(retrieved_titles, expected_docs)
+    relevance = eval_relevance(retrieved_titles, expected_docs)
     precision = eval_precision(answer, expected_keywords)
-    completitud = eval_completitud(answer, bool(expected_docs))
-    formato = eval_formato(answer)
+    completeness = eval_completeness(answer, bool(expected_docs))
+    format_score = eval_format(answer)
 
     # Weighted global score
     global_score = (
-        relevancia * 0.30
+        relevance * 0.30
         + precision * 0.35
-        + completitud * 0.20
-        + formato * 0.15
+        + completeness * 0.20
+        + format_score * 0.15
     )
 
     return {
@@ -151,11 +158,11 @@ def evaluate_single(
         "top_score": top_score,
         "elapsed": round(elapsed, 3),
         "error": error,
-        "rubricas": {
-            "relevancia": round(relevancia * 100, 1),
+        "rubrics": {
+            "relevance": round(relevance * 100, 1),
             "precision": round(precision * 100, 1),
-            "completitud": round(completitud * 100, 1),
-            "formato": round(formato * 100, 1),
+            "completeness": round(completeness * 100, 1),
+            "format": round(format_score * 100, 1),
             "global": round(global_score * 100, 1),
         },
     }
@@ -171,14 +178,14 @@ def generate_report(results: List[Dict], elapsed_total: float) -> str:
     n = len(results)
 
     # Aggregated metrics
-    avg = lambda key: sum(r["rubricas"][key] for r in results) / n if n else 0
-    avg_relevancia = avg("relevancia")
+    avg = lambda key: sum(r["rubrics"][key] for r in results) / n if n else 0
+    avg_relevance = avg("relevance")
     avg_precision = avg("precision")
-    avg_completitud = avg("completitud")
-    avg_formato = avg("formato")
+    avg_completeness = avg("completeness")
+    avg_format = avg("format")
     avg_global = avg("global")
 
-    passed = sum(1 for r in results if r["rubricas"]["global"] >= 70)
+    passed = sum(1 for r in results if r["rubrics"]["global"] >= 70)
     failed = n - passed
 
     lines = [
@@ -194,10 +201,10 @@ def generate_report(results: List[Dict], elapsed_total: float) -> str:
         f"| Metric | Value | Threshold |",
         f"|---|---|---|",
         f"| **Global Accuracy** | **{avg_global:.1f}%** | >= 70% |",
-        f"| Avg. Relevance | {avg_relevancia:.1f}% | >= 60% |",
+        f"| Avg. Relevance | {avg_relevance:.1f}% | >= 60% |",
         f"| Avg. Precision | {avg_precision:.1f}% | >= 65% |",
-        f"| Avg. Completeness | {avg_completitud:.1f}% | - |",
-        f"| Avg. Format | {avg_formato:.1f}% | - |",
+        f"| Avg. Completeness | {avg_completeness:.1f}% | - |",
+        f"| Avg. Format | {avg_format:.1f}% | - |",
         f"| Tests passed (>= 70%) | {passed}/{n} |",
         f"| Tests failed (< 70%) | {failed}/{n} |",
         f"",
@@ -208,12 +215,12 @@ def generate_report(results: List[Dict], elapsed_total: float) -> str:
     ]
 
     for r in results:
-        rb = r["rubricas"]
+        rb = r["rubrics"]
         cat = r["category"] or "todas"
         status = "✅" if rb["global"] >= 70 else "❌"
         lines.append(
-            f"| {r['id']} | {cat} | {rb['relevancia']}% | {rb['precision']}% | "
-            f"{rb['completitud']}% | {rb['formato']}% | **{rb['global']}%** {status} | {r['elapsed']}s |"
+            f"| {r['id']} | {cat} | {rb['relevance']}% | {rb['precision']}% | "
+            f"{rb['completeness']}% | {rb['format']}% | **{rb['global']}%** {status} | {r['elapsed']}s |"
         )
 
     lines.extend([
@@ -223,7 +230,7 @@ def generate_report(results: List[Dict], elapsed_total: float) -> str:
     ])
 
     for r in results:
-        rb = r["rubricas"]
+        rb = r["rubrics"]
         lines.extend([
             f"### {r['id']}: {r['question']}",
             f"",
@@ -252,6 +259,8 @@ def generate_report(results: List[Dict], elapsed_total: float) -> str:
 def run_evaluation() -> None:
     """Run the full test battery and generate a report."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
+    for noisy in ("httpx", "huggingface_hub"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     # Load tests
     test_file = TESTS_DIR / "test_questions.json"
@@ -272,9 +281,9 @@ def run_evaluation() -> None:
         results.append(result)
         logger.info(
             "  -> Global: %s%% | Rel: %s%% | Prec: %s%%",
-            result["rubricas"]["global"],
-            result["rubricas"]["relevancia"],
-            result["rubricas"]["precision"],
+            result["rubrics"]["global"],
+            result["rubrics"]["relevance"],
+            result["rubrics"]["precision"],
         )
     elapsed_total = time.time() - t0
 
@@ -293,7 +302,7 @@ def run_evaluation() -> None:
     logger.info("=" * 50)
     logger.info("EVALUATION COMPLETED")
     logger.info("=" * 50)
-    avg_global = sum(r["rubricas"]["global"] for r in results) / len(results)
+    avg_global = sum(r["rubrics"]["global"] for r in results) / len(results)
     logger.info("Global accuracy: %.1f%%", avg_global)
     logger.info("Report saved to: %s", output_path)
     logger.info("=" * 50)
