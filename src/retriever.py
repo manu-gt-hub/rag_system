@@ -7,7 +7,8 @@ Two candidate lists are computed inside PostgreSQL:
   2. Full-text search: Spanish tsvector match on the meaningful query terms
      (titles, people and genres weigh more than synopsis text).
 Both lists are merged with Reciprocal Rank Fusion (RRF), plus a bonus for
-documents containing every term of a multi-term query, so exact names
+documents containing every term of a multi-term query and for documents
+whose whole title appears in the question, so exact names
 ("Danny Boyle", "Nicolas Cage") are found even when the embedding of a
 short question is not discriminative enough.
 """
@@ -29,12 +30,16 @@ from src.config import (
     TOP_K,
 )
 from src.embeddings import EmbeddingService
-from src.text_utils import query_terms
+from src.text_utils import query_terms, title_key
 
 logger = logging.getLogger(__name__)
 
 RRF_K = 60  # standard RRF damping constant
 ALL_TERMS_BONUS = 1.0 / RRF_K  # worth as much as a first place in one list
+# The question contains a whole catalog title ("...Algunos hombres buenos?"),
+# which stopword filtering and embeddings can miss.
+TITLE_BONUS = 2.0 / RRF_K
+MIN_TITLE_KEY_CHARS = 5  # " 300 " -> titles of 3+ characters
 
 HYBRID_SQL = f"""
 WITH vec AS (
@@ -55,17 +60,26 @@ fts AS (
       AND (%(cat)s::text IS NULL OR category = %(cat)s)
     ORDER BY tsv @@ q_all DESC, ts_rank_cd(tsv, q) DESC
     LIMIT %(n)s
+),
+titled AS (
+    SELECT id FROM documents
+    WHERE length(title_key) >= {MIN_TITLE_KEY_CHARS}
+      AND strpos(%(qkey)s, title_key) > 0
+      AND (%(cat)s::text IS NULL OR category = %(cat)s)
+    LIMIT %(n)s
 )
 SELECT d.id, d.category, d.title, d.content, d.metadata,
        1 - (d.embedding <=> %(emb)s::vector({EMBEDDING_DIMENSION})) AS score,
        COALESCE(1.0 / ({RRF_K} + vec.r), 0) + COALESCE(1.0 / ({RRF_K} + fts.r), 0)
        -- bonus for matching every term of a multi-term query ("danny & boyle")
-       + CASE WHEN %(multi)s AND fts.all_terms THEN {ALL_TERMS_BONUS} ELSE 0 END AS rrf,
-       fts.id IS NOT NULL AS keyword_hit
+       + CASE WHEN %(multi)s AND fts.all_terms THEN {ALL_TERMS_BONUS} ELSE 0 END
+       + CASE WHEN titled.id IS NOT NULL THEN {TITLE_BONUS} ELSE 0 END AS rrf,
+       fts.id IS NOT NULL OR titled.id IS NOT NULL AS keyword_hit
 FROM documents d
 LEFT JOIN vec ON vec.id = d.id
 LEFT JOIN fts ON fts.id = d.id
-WHERE vec.id IS NOT NULL OR fts.id IS NOT NULL
+LEFT JOIN titled ON titled.id = d.id
+WHERE vec.id IS NOT NULL OR fts.id IS NOT NULL OR titled.id IS NOT NULL
 ORDER BY rrf DESC
 LIMIT %(k)s
 """
@@ -138,6 +152,7 @@ class Retriever:
             "tsq": build_tsquery(query),
             "tsq_all": build_tsquery(query, "&"),
             "multi": len(query_terms(query)) > 1,
+            "qkey": title_key(query),
             "n": max(RETRIEVAL_CANDIDATES, k),
             "k": k * 3,  # extra rows so the threshold filter can drop some
         }

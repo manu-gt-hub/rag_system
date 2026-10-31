@@ -31,7 +31,7 @@ from src.config import (
     POSTGRES_DSN,
 )
 from src.embeddings import EmbeddingService
-from src.text_utils import normalize
+from src.text_utils import normalize, title_key
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ MAX_TRACKS_LISTED = 40
 MAX_EPISODES_LISTED = 12
 
 # Bump when document construction changes so `--if-needed` re-indexes
-DOCUMENT_VERSION = 4
+DOCUMENT_VERSION = 5
 
 
 # ---------------------------------------------------------------------------
@@ -415,6 +415,7 @@ def init_pgvector(conn) -> None:
                 title       TEXT,
                 content     TEXT NOT NULL,
                 metadata    JSONB,
+                title_key   TEXT,
                 tsv         TSVECTOR,
                 embedding   vector({EMBEDDING_DIMENSION})
             );
@@ -482,6 +483,7 @@ def insert_documents(
             doc["title"],
             doc["text"],
             json.dumps(doc["metadata"], ensure_ascii=False),
+            title_key(doc["title"]),
             normalize(doc["title"]),
             normalize(doc["keywords"]),
             normalize(doc["text"]),
@@ -493,16 +495,16 @@ def insert_documents(
         execute_values(
             cur,
             """
-            INSERT INTO documents (category, title, content, metadata, tsv, embedding)
-            SELECT category, title, content, metadata::jsonb,
+            INSERT INTO documents (category, title, content, metadata, title_key, tsv, embedding)
+            SELECT category, title, content, metadata::jsonb, title_key,
                    setweight(to_tsvector('spanish', t), 'A')
                    || setweight(to_tsvector('spanish', k), 'B')
                    || setweight(to_tsvector('spanish', c), 'D'),
                    embedding
-            FROM (VALUES %s) AS v(category, title, content, metadata, t, k, c, embedding)
+            FROM (VALUES %s) AS v(category, title, content, metadata, title_key, t, k, c, embedding)
             """,
             rows,
-            template=f"(%s, %s, %s, %s, %s, %s, %s, %s::vector({EMBEDDING_DIMENSION}))",
+            template=f"(%s, %s, %s, %s, %s, %s, %s, %s, %s::vector({EMBEDDING_DIMENSION}))",
             page_size=200,
         )
     conn.commit()

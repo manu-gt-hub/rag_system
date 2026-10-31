@@ -150,7 +150,9 @@ A single SQL query computes two rankings and fuses them:
    not precise.
 3. **RRF fusion**: `score = 1/(60 + vector_rank) + 1/(60 + text_rank)`, plus a
    bonus equal to a first place when a document contains every term of a
-   multi-term query. No need to calibrate different score scales, and a
+   multi-term query, and a double bonus when the question contains a whole
+   catalog title ("What rating does *Algunos hombres buenos* have?", whose words
+   would otherwise be dropped as Spanish stopwords). No need to calibrate different score scales, and a
    document ranked high in both lists rises to the top.
 
 Results below `SIMILARITY_THRESHOLD` cosine similarity are dropped unless they
@@ -201,6 +203,7 @@ erDiagram
         serial id PK
         text category "peliculas | libros | series | musica | videojuegos | documentales"
         text title
+        text title_key "normalized title, matched inside questions"
         text content "text that is embedded and passed to the LLM"
         jsonb metadata "year, genre, rating, poster_url, file..."
         tsvector tsv "'spanish' full-text, weighted A/B/D"

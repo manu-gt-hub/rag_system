@@ -31,7 +31,7 @@ STOPWORDS = {
     "any", "some", "something", "anything", "recommend", "suggest", "want",
     "would", "like", "can", "could", "you", "your", "give", "show", "find",
     "good", "best", "please", "watch", "read", "listen", "play", "kind", "from",
-    "content", "according", "does", "did", "there",
+    "content", "according", "does", "did", "there", "rating", "ratings",
     "movie", "movies", "book", "books", "shows", "song", "songs", "music", "game",
     "games", "videogame", "videogames", "documentary", "documentaries",
     # category nouns (handled by category detection, too common in documents)
@@ -72,6 +72,11 @@ def normalize(text: str) -> str:
 def tokenize(text: str) -> List[str]:
     """Normalized alphanumeric tokens."""
     return re.findall(r"[a-z0-9]+", normalize(text))
+
+
+def title_key(text: str) -> str:
+    """Space-padded normalized tokens, used to find a title inside a question."""
+    return f" {' '.join(tokenize(text))} "
 
 
 def query_terms(text: str) -> List[str]:

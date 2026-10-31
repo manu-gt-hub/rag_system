@@ -52,6 +52,12 @@ class TestTextUtils:
     def test_juego_de_tronos_is_not_a_videogame(self):
         assert detect_category("¿Tengo Juego de tronos?") is None
 
+    def test_title_key_finds_title_in_question(self):
+        from src.text_utils import title_key
+        question = title_key("What rating does the movie Algunos hombres buenos have?")
+        assert title_key("Algunos hombres buenos") in question
+        assert title_key("Alien") not in title_key("Aliens and robots")
+
     def test_tsquery_is_or_of_safe_terms(self):
         assert build_tsquery("¿Qué hay de Nicolas Cage & robos?") == "nicolas | cage | robos"
         assert build_tsquery("¿Qué tengo?") == ""
