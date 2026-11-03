@@ -1,5 +1,6 @@
-# Typecheck and tests on every push and pull request. No Cloudflare account
-# needed: retrieval and API tests run against the real catalog in SQLite.
+# Typecheck, tests and Worker build on every push and pull request. No
+# Cloudflare account needed: retrieval and API tests run against the real
+# catalog in SQLite, UI tests run the chat page in happy-dom.
 name: CI
 
 on:
@@ -8,7 +9,7 @@ on:
 
 jobs:
   test:
-    name: Typecheck & tests
+    name: Typecheck, tests & build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,3 +22,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+      # Bundles the Worker and validates wrangler.jsonc and its bindings without
+      # deploying, so bundling or config errors fail the PR instead of the deploy
+      - name: Build Worker (dry run)
+        run: npx wrangler deploy --dry-run --outdir dist

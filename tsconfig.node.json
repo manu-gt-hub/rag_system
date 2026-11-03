@@ -4,5 +4,6 @@
   "compilerOptions": {
     "types": ["@cloudflare/workers-types", "node"]
   },
-  "include": ["src/**/*.ts", "indexer/**/*.ts", "evaluation/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "indexer/**/*.ts", "evaluation/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"],
+  "exclude": ["test/ui-dom.test.ts"]
 }
