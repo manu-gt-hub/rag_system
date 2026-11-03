@@ -1,33 +1,18 @@
-# Virtual environment
-venv/
-.venv/
-
-# Environment variables (contains API keys)
-.env
-
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.egg-info/
-dist/
+# Dependencies and build output
+node_modules/
 build/
-*.egg
+dist/
+.wrangler/
 
-# IDE
+# Credentials
+.env
+.dev.vars
+
+# Evaluation output (published as a CI artifact)
+evaluation/results.md
+
+# IDE / OS
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 .DS_Store
-
-# Test / evaluation artifacts
-results/junit-results.xml
-results/test-output.log
-
-# Byte-compiled
-*.pyc
-
-# OS
 Thumbs.db

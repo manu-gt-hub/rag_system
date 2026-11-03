@@ -1,115 +1,108 @@
-# AGENTS.md — RAG System Harness Engineering
+# AGENTS.md — RAG Catalog Harness Engineering
 
 ## Overview
 
 RAG (Retrieval-Augmented Generation) recommendation chatbot over a personal
-multimedia catalog. Uses pgvector as vector store, OpenAI or local (fastembed)
-embeddings and OpenAI/Anthropic for response generation from JSON indexes of
-movies, books, series, music, video games and documentaries.
+multimedia catalog, running entirely on Cloudflare's free tier: a TypeScript
+Worker serves the chat UI and API, Vectorize stores the embeddings, D1 holds
+the documents and an FTS5 keyword index, and Workers AI provides embeddings
+(`bge-m3`) and answers (Llama 3.3 70B). OpenAI or Anthropic can replace the
+LLM through Worker secrets.
 
 Detailed architecture, diagrams and technology rationale: `doc/architecture.md`.
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Web UI     │────▶│ RAG Pipeline │────▶│  LLM (GPT /  │
-│  (Flask)    │     │              │     │  Claude)     │
-└─────────────┘     └──────┬───────┘     └──────────────┘
-                           │
-                    ┌──────▼───────┐
-                    │  pgvector    │
-                    │ (PostgreSQL) │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │  Embeddings  │
-                    │  (OpenAI /   │
-                    │   local)     │
-                    └──────────────┘
+┌─────────────┐     ┌──────────────────┐     ┌────────────────┐
+│  Chat UI    │────▶│ Worker (TS)      │────▶│ Workers AI     │
+│  (static)   │     │ RAG pipeline     │     │ bge-m3 + Llama │
+└─────────────┘     └────────┬─────────┘     └────────────────┘
+                             │
+               ┌─────────────┴─────────────┐
+        ┌──────▼───────┐            ┌──────▼───────┐
+        │  Vectorize   │            │  D1 (SQLite) │
+        │  vectors     │            │  docs + FTS5 │
+        └──────────────┘            └──────────────┘
 ```
 
 ## Agents / Modules
 
-### 1. Indexer Agent (`src/indexer.py`)
-- **Role**: Loads `resources/indexes/*.json` files, generates embeddings and
-  stores them in pgvector.
+### 1. Indexer Agent (`indexer/`)
+- **Role**: Turns `resources/indexes/*/index.json` into semantic documents
+  and loads them into Vectorize and D1.
 - **Responsibilities**:
-  - Parse each `index.json` (movies, books, series, music, video games, documentaries).
-  - Build one semantic document per recommendable item: series are grouped by
-    show, music by artist/album folder, movies/games are deduplicated.
-  - Generate embeddings (OpenAI `text-embedding-3-small`, or the local
-    multilingual model when there is no OpenAI key).
-  - Insert vectors + Spanish `tsvector` into PostgreSQL/pgvector, build HNSW
-    and GIN indexes, and record the embedding signature in `index_meta`.
-  - `--if-needed` skips work when the index matches the current model.
+  - Build one document per recommendable item (`documents.ts`): series are
+    grouped by show, music by artist/album folder, movies/games/books are
+    deduplicated; genres are stored in Spanish and English.
+  - Compute a signature (catalog + document format + embedding model) and skip
+    work when D1 already holds it (`--if-changed`).
+  - Embed with Workers AI `bge-m3` (REST API, batches of 50, cached per signature).
+  - Upsert vectors into Vectorize and load documents + FTS5 + signature into D1.
 
-### 2. Retriever Agent (`src/retriever.py`)
-- **Role**: Semantic search against pgvector.
+### 2. Retriever Agent (`src/retriever.ts`)
+- **Role**: Hybrid search.
 - **Responsibilities**:
-  - Receive a user query.
-  - Generate query embedding with the same model used for indexing.
-  - Run cosine similarity search and Spanish full-text search in one SQL
-    query, fused with Reciprocal Rank Fusion.
-  - Return the top-K most relevant documents with scores.
+  - Embed the question with the same model used for indexing.
+  - Query Vectorize (cosine, optional category filter) and D1 (title match,
+    FTS5 all-terms and any-term) in parallel.
+  - Fuse the lists with Reciprocal Rank Fusion plus all-terms and title bonuses.
+  - Return the top-K documents with scores.
 
-### 3. Generator Agent (`src/generator.py`)
-- **Role**: Generate responses using an LLM with retrieved context.
+### 3. Generator Agent (`src/generator.ts`)
+- **Role**: Generate the answer with retrieved context.
 - **Responsibilities**:
-  - Build recommendation prompt with context (retrieved documents),
-    conversation history and question.
-  - Call OpenAI GPT-4o-mini or Anthropic Claude.
-  - Return natural-language response with references.
+  - Build the prompt (`src/prompt.ts`) with context, history and question.
+  - Call Workers AI (default), OpenAI or Anthropic.
+  - Report an exhausted free daily quota as a clear 429.
 
-### 4. RAG Pipeline (`src/rag_pipeline.py`)
-- **Role**: Orchestrator connecting Retriever → Generator.
+### 4. RAG Pipeline (`src/index.ts`)
+- **Role**: Orchestrator and API.
 - **Responsibilities**:
-  - Receive user question and chat history.
+  - `/api/chat` (with memory), `/api/query`, `/api/search` (retrieval only),
+    `/api/config`, `/health`; rate limiting per IP.
   - Enrich short follow-ups with the previous question; detect category.
-  - Invoke retriever to obtain context.
-  - Invoke generator with context + question.
-  - Return final response with metadata (time, docs used, scores).
+  - Invoke retriever, then generator; return answer, sources and metrics.
 
-### 5. Evaluator Agent (`tests/run_evaluation.py`)
-- **Role**: Test harness to measure RAG quality.
+### 5. Evaluator Agent (`evaluation/`)
+- **Role**: Test harness measuring RAG quality on the live deployment.
 - **Responsibilities**:
-  - Load question/expected-answer battery (`tests/test_questions.json`).
-  - Execute each question through the pipeline.
-  - Evaluate accuracy with rubrics defined in `doc/rubrics.md`.
-  - Generate report in `results/evaluation_results.md`.
+  - Load the question battery (`evaluation/questions.json`).
+  - Run each question against a deployed URL.
+  - Score with the rubrics of `doc/rubrics.md` (`evaluation/rubrics.ts`).
+  - Write `evaluation/results.md`; fail under thresholds with `--strict`.
 
-### 6. Web UI (`src/web_app.py`)
-- **Role**: Chat web interface.
+### 6. Web UI (`public/index.html`)
+- **Role**: Chat interface served as static assets.
 - **Responsibilities**:
-  - Serve the chat page (history kept client-side).
-  - Display response + context documents + scores.
-  - `/api/chat` (with memory) and `/api/query` endpoints.
+  - Keep the conversation history client-side and send it to `/api/chat`.
+  - Render answers (light markdown) and the source documents with scores.
 
 ## Harness Engineering
 
-The harness engineering approach is applied as follows:
-
-1. **Defined rubrics** in `doc/rubrics.md` — objective criteria to evaluate
-   relevance, precision, completeness and format of responses.
-2. **Test suite** in `tests/test_questions.json` — question battery with
-   expected answers per category (movies, books, etc.).
-3. **Automated evaluation** — `run_evaluation.py` runs tests, calculates % accuracy
-   per rubric and generates a markdown report.
-4. **Versioned results** — each run generates a report in
-   `results/evaluation_results.md` with timestamp, scores and details.
+1. **Defined rubrics** in `doc/rubrics.md` — relevance, precision,
+   completeness and format, with acceptance thresholds.
+2. **Test suite** — `evaluation/questions.json` for quality; `test/` (vitest)
+   for code, including retrieval against the real catalog in SQLite.
+3. **Automated evaluation** — every deploy evaluates the live demo and fails
+   the evaluation job under thresholds.
+4. **Versioned results** — each run publishes `evaluation/results.md` as a CI
+   artifact and in the run summary.
 
 ## Configuration
 
-- Copy `.env.example` → `.env` and fill in at least one API key.
-- `docker compose up --build` starts pgvector, indexes and serves on :8000.
-- Without Docker: `bash setup.sh`, a PostgreSQL with pgvector, then
-  `python -m src.indexer` and `python -m src.web_app`.
-- Unit tests without keys: `pytest tests/test_unit.py`.
+- `npm install`, `npx wrangler login`, `cp .env.example .env`
+  (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`).
+- `npm run setup` (creates D1 + Vectorize), `npm run index`, `npm run deploy`.
+- Tests need no account: `npm test`.
+- CI/CD: secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; variable `DEMO_URL`.
 - See `README.md` for full instructions.
 
 ## LLM Provider
 
-Supports two providers (`LLM_PROVIDER` in `.env`, auto-detected from keys):
-- **openai**: GPT-4o-mini for generation, text-embedding-3-small for embeddings.
-- **anthropic**: Claude Haiku 4.5 for generation. Embeddings via OpenAI if its
-  key is present, otherwise the local fastembed model (`EMBEDDING_PROVIDER`).
+`LLM_PROVIDER` in `wrangler.jsonc`:
+- **workers-ai** (default, free): `@cf/meta/llama-3.3-70b-instruct-fp8-fast`.
+- **openai**: needs `wrangler secret put OPENAI_API_KEY`.
+- **anthropic**: needs `wrangler secret put ANTHROPIC_API_KEY`.
+
+Embeddings are always Workers AI `bge-m3`; changing the LLM needs no re-index.

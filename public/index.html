@@ -87,14 +87,8 @@
 <body>
     <header>
         <h1>🎬📚🎮 Your media catalog</h1>
-        <span class="info">LLM: {{ llm_provider }} · embeddings: {{ embedding_provider }} · pgvector</span>
+        <span class="info" id="info">Cloudflare Workers AI · Vectorize · D1</span>
     </header>
-    {% if not llm_ready %}
-    <div class="banner">
-        No LLM API key found ({{ llm_provider }}). Add <code>OPENAI_API_KEY</code> or
-        <code>ANTHROPIC_API_KEY</code> to <code>.env</code> and restart with <code>docker compose up -d</code>.
-    </div>
-    {% endif %}
 
     <main id="scroll">
         <div class="thread" id="thread">
@@ -118,9 +112,6 @@
             <textarea id="input" placeholder="Type your message... (Enter to send, Shift+Enter for a new line)" rows="1"></textarea>
             <select id="category" title="Category">
                 <option value="">Auto (all)</option>
-                {% for cat in categories %}
-                <option value="{{ cat }}">{{ category_labels[cat] }}</option>
-                {% endfor %}
             </select>
             <button id="send" type="submit">Send</button>
             <button id="reset" type="button" class="secondary" title="New conversation">New chat</button>
@@ -133,7 +124,16 @@
         const input = document.getElementById('input');
         const sendBtn = document.getElementById('send');
         let history = [];
-        const CATEGORY_LABELS = {{ category_labels|tojson }};
+        let CATEGORY_LABELS = {};
+        fetch('/api/config').then(r => r.json()).then(cfg => {
+            CATEGORY_LABELS = cfg.categories;
+            const select = document.getElementById('category');
+            for (const [value, label] of Object.entries(cfg.categories)) {
+                select.add(new Option(label, value));
+            }
+            document.getElementById('info').textContent =
+                `LLM: ${cfg.model} · embeddings: ${cfg.embedding_model} · Vectorize + D1`;
+        }).catch(() => {});
 
         const esc = s => String(s ?? '').replace(/[&<>"']/g, c => (
             {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));

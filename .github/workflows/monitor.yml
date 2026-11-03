@@ -1,0 +1,31 @@
+# Synthetic check of the live demo every 6 hours. Uses /api/search (retrieval
+# only), so it spends no LLM quota. GitHub emails the repository owner when a
+# scheduled run fails.
+#
+# Repository variable: DEMO_URL (e.g. https://rag-catalog.<subdomain>.workers.dev)
+name: Monitor
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Live demo health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health and retrieval
+        env:
+          DEMO_URL: ${{ vars.DEMO_URL }}
+        run: |
+          if [ -z "$DEMO_URL" ]; then
+            echo "::warning title=Monitor skipped::Set the DEMO_URL repository variable."
+            exit 0
+          fi
+          curl -fsS --retry 3 --retry-delay 10 "$DEMO_URL/health"
+          docs=$(curl -fsS --retry 3 --retry-delay 10 -X POST "$DEMO_URL/api/search" \
+            -H "Content-Type: application/json" -d '{"question": "horror movie"}' \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).docs.length))")
+          echo "Documents retrieved: $docs"
+          [ "$docs" -gt 0 ]

@@ -1,0 +1,23 @@
+{
+  "name": "rag-catalog",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "tsx scripts/setup.ts",
+    "index": "tsx indexer/index-catalog.ts",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --remote",
+    "evaluate": "tsx evaluation/evaluate.ts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
+    "pretest": "tsx indexer/index-catalog.ts --build-only",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261102.1",
+    "@types/node": "^22.19.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.156.2"
+  }
+}

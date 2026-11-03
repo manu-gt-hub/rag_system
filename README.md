@@ -1,157 +1,146 @@
-# RAG System — Recommendation chatbot for your media catalog
+# RAG Catalog — recommendation chatbot on Cloudflare's free tier
 
 A chatbot that **recommends and answers questions** about a personal catalog of
-movies, TV series, books, music, video games and documentaries. It uses RAG:
-each catalog item becomes a semantic vector stored in **PostgreSQL + pgvector**;
-each question is embedded with the same model, the most similar items are
-retrieved (hybrid vector + full-text search) and an LLM (**OpenAI** or
-**Anthropic**) writes the recommendation using only that context.
+movies, TV series, books, music, video games and documentaries. It is a
+Retrieval-Augmented Generation (RAG) system that runs entirely on Cloudflare's
+free plan: no servers, no database to operate, no API key required, and it is
+deployed automatically on every push.
 
-📐 Architecture, diagrams and technology choices: [doc/architecture.md](doc/architecture.md)
+**Live demo:** https://rag-catalog.mgutierrezt.workers.dev
 
-## Quick start (Docker)
+[![CI](https://github.com/manu-gt-hub/rag_system/actions/workflows/ci.yml/badge.svg)](https://github.com/manu-gt-hub/rag_system/actions/workflows/ci.yml)
+[![Deploy](https://github.com/manu-gt-hub/rag_system/actions/workflows/deploy.yml/badge.svg)](https://github.com/manu-gt-hub/rag_system/actions/workflows/deploy.yml)
+[![Monitor](https://github.com/manu-gt-hub/rag_system/actions/workflows/monitor.yml/badge.svg)](https://github.com/manu-gt-hub/rag_system/actions/workflows/monitor.yml)
 
-Requirement: [Docker](https://docs.docker.com/get-docker/) with `docker compose`.
+Try: *Recommend me a horror movie* → *any more recent ones?* · *What do I have by
+Danny Boyle?* · *An RPG for the Game Boy* · *A science fiction book to read*
+
+## How it works
+
+```mermaid
+flowchart LR
+    U([User]) --> UI[Chat UI<br/>static assets]
+    UI --> W[Worker<br/>TypeScript]
+    W -->|embed question| E[Workers AI<br/>bge-m3]
+    W -->|semantic top 40| V[(Vectorize)]
+    W -->|keywords + titles| D[(D1<br/>SQLite FTS5)]
+    W -->|context + question| L[Workers AI<br/>Llama 3.3 70B]
+    L --> W --> UI
+```
+
+1. **Indexing** (build time): 17,310 catalog records become ~2,400 semantic
+   documents (series grouped per show, music per album, duplicates merged),
+   embedded with the multilingual `bge-m3` model and loaded into Vectorize and D1.
+2. **Hybrid retrieval**: vector similarity (meaning) and full-text search
+   (exact names, titles) run in parallel and are fused with Reciprocal Rank
+   Fusion.
+3. **Generation**: an LLM writes the recommendation using only the retrieved
+   documents, in the language of the question.
+
+Architecture, diagrams and technology choices: [doc/architecture.md](doc/architecture.md).
+
+## Quality is measured, not assumed
+
+Every deploy runs a battery of questions against the live demo and scores it
+with the rubrics in [doc/rubrics.md](doc/rubrics.md) (retrieval relevance,
+answer precision, completeness, format). The report is attached to the deploy
+run and the job fails if the thresholds are not met.
+
+## Deploy your own (free)
+
+Requirements: Node 22+ and a free Cloudflare account.
 
 ```bash
 git clone <repo> && cd rag_system
-cp .env.example .env          # Windows PowerShell: copy .env.example .env
-# Edit .env and set at least one key:
-#   OPENAI_API_KEY=sk-...      and/or   ANTHROPIC_API_KEY=sk-ant-...
-docker compose up --build
+npm install
+npx wrangler login            # or put CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN in .env
+cp .env.example .env          # needed by `npm run index` (embeddings via the REST API)
+
+npm run setup                 # creates D1 + Vectorize, writes the D1 id into wrangler.jsonc
+npm run index                 # builds, embeds and loads the catalog (~2 min)
+npm run deploy                # prints https://rag-catalog.<subdomain>.workers.dev
 ```
 
-Open **http://localhost:8000** and ask, for example:
+### Continuous deployment
 
-- *Recommend me a horror movie* → then *any more recent ones?*
-- *A science fiction book to read*
-- *What do I have by Danny Boyle?*
-- *An RPG for the Game Boy*
+Add two repository secrets (Settings → Secrets and variables → Actions):
+`CLOUDFLARE_API_TOKEN` (permissions: Workers Scripts Edit, D1 Edit, Vectorize
+Edit, Workers AI Read) and `CLOUDFLARE_ACCOUNT_ID`. Commit the `database_id`
+written by `npm run setup`. From then on every push to `main`:
 
-On first start the container indexes the catalog (about 2,400 documents) and
-then serves the web app. Later starts reuse the index. If you change the
-embedding provider, it re-indexes automatically.
+| Step | What happens |
+|---|---|
+| Test | Typecheck + 33 tests (real catalog in SQLite, no account needed) |
+| Index | Re-embeds and reloads **only if** the catalog, document format or model changed |
+| Deploy | `wrangler deploy` |
+| Smoke test | `/health` and a retrieval query against the live URL |
+| Evaluate | Rubric evaluation on the live demo, report as artifact |
 
-| Keys in `.env` | LLM | Embeddings | Indexing cost |
-|---|---|---|---|
-| Only `OPENAI_API_KEY` | GPT-4o-mini | OpenAI `text-embedding-3-small` | a few cents, ~1 min |
-| Only `ANTHROPIC_API_KEY` | Claude Haiku 4.5 | Local multilingual model (fastembed, CPU) | free; ~220 MB download the first time, a few minutes |
-| Both | `LLM_PROVIDER` (default: openai) | `EMBEDDING_PROVIDER` (default: openai) | — |
+Set the repository variable `DEMO_URL` to enable the 6-hourly health check
+(`monitor.yml`).
 
-Anthropic does not offer an embeddings API, so without an OpenAI key a local
-model is used and no other account is needed.
+### Free tier budget
 
-The bot replies in the language of the question. The catalog data itself is
-in Spanish, so titles are shown as they appear in the catalog.
+| Resource | Free allowance | Usage |
+|---|---|---|
+| Workers | 100,000 requests/day, 10 ms CPU/request | the Worker only orchestrates I/O |
+| Vectorize | 5 M stored / 30 M queried dimensions per month | 2.5 M stored, ~26,000 questions/month |
+| Workers AI | 10,000 Neurons/day | ~120 per answer → **~70 answers/day**; retrieval-only checks are almost free |
+| D1 | 5 GB | ~7 MB |
 
-### Check that it works
+Nothing is ever billed: when the daily AI allocation runs out the API answers
+with a clear message until the next day. A rate limit (10 questions/minute per
+IP) protects the quota.
+
+### Better answers with OpenAI or Anthropic (optional)
 
 ```bash
-# Service health
-curl http://localhost:8000/health
-
-# Chat with memory
-curl -X POST http://localhost:8000/api/chat -H "Content-Type: application/json" \
-  -d '{"message": "Recommend me a horror movie", "history": []}'
-
-# Single question (optional category filter)
-curl -X POST http://localhost:8000/api/query -H "Content-Type: application/json" \
-  -d '{"question": "Who directed 300?", "category": "peliculas"}'
-
-# Unit tests (no keys needed)
-docker compose exec app python -m pytest tests/test_unit.py -v
-
-# Rubric-based evaluation against the real pipeline (calls the LLM API)
-docker compose exec app python -m tests.run_evaluation
-docker compose exec app cat results/evaluation_results.md
+npx wrangler secret put OPENAI_API_KEY        # or ANTHROPIC_API_KEY
+# wrangler.jsonc: "LLM_PROVIDER": "openai"   (or "anthropic")
+npm run deploy
 ```
 
-Useful commands:
-
-```bash
-docker compose logs -f app                        # follow indexing and requests
-docker compose exec app python -m src.indexer     # force a re-index
-docker compose down -v                            # stop and delete data and index
-```
-
-If ports 8000 or 5432 are already in use, change them in `.env`
-(`APP_HOST_PORT`, `POSTGRES_HOST_PORT`).
+Retrieval keeps using Vectorize and `bge-m3`, so no re-indexing is needed.
 
 ## API
 
 | Endpoint | Body | Description |
 |---|---|---|
-| `POST /api/chat` | `{"message", "history": [{"role","content"}], "category"?, "top_k"?}` | Chat with conversational memory |
+| `POST /api/chat` | `{"message", "history": [{"role","content"}], "category"?}` | Chat with conversational memory |
 | `POST /api/query` | `{"question", "category"?, "top_k"?}` | Single question |
-| `GET /health` | — | Liveness check |
+| `POST /api/search` | `{"question", "category"?, "top_k"?}` | Retrieval only (no LLM) |
+| `GET /api/config` | — | Model and category labels |
+| `GET /health` | — | Liveness |
 
 `category`: `peliculas` (movies), `libros` (books), `series`, `musica` (music),
-`videojuegos` (video games), `documentales` (documentaries). These keys match
-the catalog folders. If omitted, it is inferred when the question names exactly
-one category.
+`videojuegos` (video games), `documentales` (documentaries); inferred from the
+question when it names exactly one.
 
-The response includes `answer`, `docs` (title, category, similarity, year,
-genre, rating, poster), `category`, `elapsed_seconds` and `provider`.
-
-## Development without Docker
-
-Requires Python 3.10+ and PostgreSQL with pgvector (you can start just the
-database with `docker compose up -d db`).
+## Development
 
 ```bash
-bash setup.sh                 # creates venv, installs dependencies, copies .env
-source venv/bin/activate      # Windows: venv\Scripts\activate
-python -m src.indexer         # index (add --if-needed to skip when up to date)
-python -m src.web_app         # http://localhost:8000
-pytest tests/test_unit.py     # fast tests
-python -m tests.run_evaluation
+npm test             # builds the catalog SQL, runs all tests (no account needed)
+npm run typecheck
+npm run dev          # local Worker using the remote AI, Vectorize and D1
+npm run evaluate -- --url https://rag-catalog.<subdomain>.workers.dev
 ```
 
 ## Project structure
 
 ```
-rag_system/
-├── AGENTS.md                # Agent/module definitions
-├── docker-compose.yml       # db (pgvector) + app
-├── Dockerfile               # App image
-├── docker/entrypoint.sh     # indexes if needed, then starts gunicorn
-├── .env.example             # Configuration template (API keys)
-├── requirements.txt
-├── setup.sh                 # Local install (venv)
-├── doc/
-│   ├── architecture.md      # Diagrams, data flow and technology choices
-│   └── rubrics.md           # Evaluation rubrics
-├── src/
-│   ├── config.py            # Configuration and provider auto-detection
-│   ├── text_utils.py        # Normalization, search terms, category detection
-│   ├── embeddings.py        # OpenAI or local (fastembed) embeddings
-│   ├── indexer.py           # JSON → documents → pgvector
-│   ├── retriever.py         # Hybrid search (vector + full-text, RRF)
-│   ├── generator.py         # Recommendation prompt + LLM
-│   ├── rag_pipeline.py      # Orchestrator
-│   └── web_app.py           # Chat UI + API (Flask)
-├── templates/index.html     # Chat interface
-├── tests/
-│   ├── test_unit.py         # Tests without keys or database
-│   ├── test_rag_ci.py       # Rubric thresholds (CI)
-│   ├── run_evaluation.py    # Evaluation report
-│   └── test_questions.json  # Question battery
-├── results/evaluation_results.md
-└── resources/indexes/       # Catalog JSON per category
+├── src/                 Worker (runs on Cloudflare)
+│   ├── index.ts         API routes + RAG pipeline
+│   ├── retriever.ts     hybrid search: Vectorize + D1 FTS5, RRF fusion
+│   ├── generator.ts     Workers AI / OpenAI / Anthropic
+│   ├── prompt.ts        system prompt
+│   └── text.ts          normalization, query terms, category detection
+├── indexer/             catalog JSON → documents → embeddings → Vectorize + D1
+├── evaluation/          question battery, rubrics, evaluator
+├── scripts/             setup (resources) and wrangler helper
+├── public/index.html    chat UI
+├── schema.sql           D1 schema
+├── test/                vitest suites
+├── resources/indexes/   catalog data (JSON per category)
+├── doc/                 architecture and rubrics
+└── .github/workflows/   ci, deploy, monitor
 ```
-
-## Evaluation (harness)
-
-Each question in `tests/test_questions.json` is scored with the rubrics in
-[doc/rubrics.md](doc/rubrics.md):
-
-| Rubric | Weight | What it measures |
-|---|---|---|
-| Relevance | 30% | Are the expected documents retrieved? |
-| Precision | 35% | Does the answer contain the expected data? |
-| Completeness | 20% | Does it answer without wrongly refusing? |
-| Format | 15% | Right language, well structured, reasonable length? |
-
-Acceptance threshold: **>= 70% global accuracy**. The
-`.github/workflows/rag-evaluation.yml` workflow runs it on every push using the
-repository secrets.
