@@ -27,8 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       url: ${{ steps.deploy.outputs.url }}
+      evaluate: ${{ steps.changes.outputs.evaluate }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2 # to compare with the previous commit on main
 
       - uses: actions/setup-node@v7
         with:
@@ -38,6 +41,25 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+      # The live evaluation spends ~1,300 of the 10,000 free daily Neurons, so it
+      # only runs when answer quality can change (not for docs, CI or
+      # dependency-only merges), or when the workflow is started by hand
+      - name: Decide whether to evaluate
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "evaluate=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only HEAD^1 HEAD)
+          echo "$changed"
+          if echo "$changed" | grep -qE '^(src/|indexer/|resources/|evaluation/|schema\.sql$|wrangler\.jsonc$)'; then
+            echo "evaluate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "evaluate=false" >> "$GITHUB_OUTPUT"
+            echo "Evaluation skipped: no change can affect answer quality" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Check Cloudflare credentials
         id: creds
@@ -72,19 +94,18 @@ jobs:
           code=$(curl -sS -o search.json -w "%{http_code}" -X POST "$url/api/search" \
             -H "Content-Type: application/json" -d '{"question": "Danny Boyle"}')
           cat search.json
-          # Search embeds the question with Workers AI: with the free daily quota
-          # used up the deploy is fine, but retrieval cannot be checked until tomorrow
-          if [ "$code" = 429 ] && grep -q quota_exceeded search.json; then
-            echo "::warning::Search not checked: the free daily AI quota is used up"
-            exit 0
-          fi
           [ "$code" = 200 ] || { echo "Search returned HTTP $code"; exit 1; }
           node -e "const r=require('./search.json'); if (!r.docs?.length) { console.error('No documents retrieved'); process.exit(1) }"
+          # With the free daily AI quota used up search answers from D1 only:
+          # the deploy is fine, but vector retrieval cannot be checked until tomorrow
+          if grep -q '"retrieval":"keyword_only"' search.json; then
+            echo "::warning::Vector search not checked: the free daily AI quota is used up (keyword-only)"
+          fi
 
   evaluate:
     name: Rubric evaluation (live)
     needs: deploy
-    if: needs.deploy.outputs.url != ''
+    if: needs.deploy.outputs.url != '' && needs.deploy.outputs.evaluate == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

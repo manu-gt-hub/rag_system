@@ -251,10 +251,17 @@ the deploy workflow whether the loaded index matches the repository.
 | Workers AI | 10,000 Neurons / day | indexing ≈ 1,000 (only when the catalog changes); ≈ 120 per answer → ~70 answers/day |
 | D1 | 5 GB storage, 5 M rows read / day | ≈ 7 MB |
 
-When a free allowance is exhausted the request fails with a clear message;
-nothing is billed. The answer budget is the real constraint: the rate limit
-keeps one visitor from using it all, and monitoring uses retrieval-only
-requests that cost almost no Neurons.
+Nothing is billed when a free allowance is exhausted. The answer budget is
+the real constraint:
+
+- **Degraded mode**: without AI quota the question cannot be embedded, so
+  search continues with D1 alone (title match + FTS5) and reports
+  `"retrieval": "keyword_only"`. Answers need the LLM and return a clear
+  `quota_exceeded` (429) until the reset at 00:00 UTC.
+- **Budget protection**: the rate limit keeps one visitor from using it all;
+  the live evaluation (~1,300 Neurons) only runs on deploys that can change
+  answer quality; monitoring uses retrieval-only requests and treats a used-up
+  quota as a warning, not an outage.
 
 ---
 

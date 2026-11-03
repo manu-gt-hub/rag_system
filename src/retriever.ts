@@ -6,6 +6,10 @@
  *   3. Documents whose whole title appears in the question.
  * Lists are merged with Reciprocal Rank Fusion, plus a bonus for documents
  * containing every query term and a double bonus for title matches.
+ *
+ * Degraded mode: when the free daily Workers AI quota is used up the question
+ * cannot be embedded, so search continues with D1 alone (keywords and titles)
+ * instead of failing, and reports it with `keywordOnly`.
  */
 
 import type { Env } from "./env";
@@ -28,6 +32,12 @@ export interface RetrievedDoc {
   score: number | null; // cosine similarity, null when found only by keyword
   rrf: number;
   keywordHit: boolean;
+}
+
+export interface SearchResult {
+  docs: RetrievedDoc[];
+  /** Vector search was skipped because the AI quota is used up. */
+  keywordOnly: boolean;
 }
 
 interface Candidate {
@@ -77,19 +87,25 @@ export async function search(
   category: string | null,
   k: number,
   threshold: number,
-): Promise<RetrievedDoc[]> {
+): Promise<SearchResult> {
   const terms = queryTerms(query);
   const candidates = new Map<number, Candidate>();
   const get = (id: number) => candidates.get(id) ?? candidates.set(id, {}).get(id)!;
 
-  // Vector search and keyword searches run in parallel
-  const vectorSearch = embed(env, query).then((vector) =>
-    env.VECTORIZE.query(vector, {
-      topK: CANDIDATES,
-      returnMetadata: "none",
-      ...(category ? { filter: { category } } : {}),
-    }),
-  );
+  // Vector search and keyword searches run in parallel. Without AI quota the
+  // vector side is skipped (null) and the keyword side still answers.
+  const vectorSearch = embed(env, query)
+    .then((vector) =>
+      env.VECTORIZE.query(vector, {
+        topK: CANDIDATES,
+        returnMetadata: "none",
+        ...(category ? { filter: { category } } : {}),
+      }),
+    )
+    .catch((e) => {
+      if (e instanceof QuotaExceededError) return null;
+      throw e;
+    });
 
   const catSql = category ? "AND d.category = ?" : "";
   const catArgs = category ? [category] : [];
@@ -110,7 +126,8 @@ export async function search(
   }
   const [vectorResult, batch] = await Promise.all([vectorSearch, env.DB.batch<{ id: number }>(statements)]);
 
-  vectorResult.matches.forEach((m, i) => {
+  const keywordOnly = vectorResult === null;
+  (vectorResult?.matches ?? []).forEach((m, i) => {
     const c = get(Number(m.id));
     c.vectorRank = i + 1;
     c.vectorScore = m.score;
@@ -128,7 +145,7 @@ export async function search(
   }
 
   const top = fuse(candidates, terms.length > 1, threshold, k);
-  if (!top.length) return [];
+  if (!top.length) return { docs: [], keywordOnly };
 
   const placeholders = top.map(() => "?").join(", ");
   const rows = await env.DB.prepare(
@@ -138,7 +155,7 @@ export async function search(
     .all<{ id: number; category: string; title: string; content: string; metadata: string }>();
   const byId = new Map(rows.results.map((r) => [r.id, r]));
 
-  return top
+  const docs = top
     .filter((t) => byId.has(t.id))
     .map((t) => {
       const r = byId.get(t.id)!;
@@ -153,4 +170,5 @@ export async function search(
         keywordHit: t.keywordHit,
       };
     });
+  return { docs, keywordOnly };
 }

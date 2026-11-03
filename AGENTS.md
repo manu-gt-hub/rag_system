@@ -48,6 +48,7 @@ Detailed architecture, diagrams and technology rationale: `doc/architecture.md`.
     FTS5 all-terms and any-term) in parallel.
   - Fuse the lists with Reciprocal Rank Fusion plus all-terms and title bonuses.
   - Return the top-K documents with scores.
+  - Without AI quota, fall back to D1 only (`keywordOnly`) instead of failing.
 
 ### 3. Generator Agent (`src/generator.ts`)
 - **Role**: Generate the answer with retrieved context.
@@ -85,8 +86,10 @@ Detailed architecture, diagrams and technology rationale: `doc/architecture.md`.
 2. **Test suite** — `evaluation/questions.json` for quality; `test/` (vitest)
    for code, including retrieval against the real catalog in SQLite and the
    chat UI running in happy-dom (language switch, escaping, chat round trip).
-3. **Automated evaluation** — every deploy evaluates the live demo and fails
-   the evaluation job under thresholds.
+3. **Automated evaluation** — every deploy that can change answer quality
+   (`src/`, `indexer/`, `resources/`, `evaluation/`, `schema.sql`,
+   `wrangler.jsonc`) evaluates the live demo and fails the evaluation job
+   under thresholds; other deploys skip it to save the free AI quota.
 4. **Versioned results** — each run publishes `evaluation/results.md` as a CI
    artifact and in the run summary.
 
