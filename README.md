@@ -123,7 +123,7 @@ in the language of the question. Errors include a stable `code`
 `message_too_long`, `internal_error`) so clients can show their own messages.
 
 The chat UI is available in English and Spanish (switcher in the header,
-defaulting to the browser language).
+English by default).
 
 ## Development
 
