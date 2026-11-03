@@ -29,7 +29,14 @@
             background: var(--panel);
         }
         header h1 { font-size: 1.15rem; color: var(--accent); }
-        header .info { color: var(--muted); font-size: 0.8rem; margin-left: auto; }
+        /* Model ids have no spaces: let them wrap so narrow screens don't scroll sideways */
+        header .info { color: var(--muted); font-size: 0.8rem; margin-left: auto; min-width: 0; overflow-wrap: anywhere; }
+        .lang { display: flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+        .lang button {
+            background: transparent; color: var(--muted); border: none; border-radius: 0;
+            height: 30px; padding: 0 0.75rem; font-size: 0.75rem; font-weight: 600;
+        }
+        .lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
         main { flex: 1; overflow-y: auto; padding: 1rem; }
         .thread { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
 
@@ -86,22 +93,26 @@
 </head>
 <body>
     <header>
-        <h1>🎬📚🎮 Your media catalog</h1>
+        <h1 data-i18n="title">🎬📚🎮 Your media catalog</h1>
         <span class="info" id="info">Cloudflare Workers AI · Vectorize · D1</span>
+        <div class="lang" role="group" aria-label="Language">
+            <button type="button" data-lang="en" aria-pressed="true">EN</button>
+            <button type="button" data-lang="es" aria-pressed="false">ES</button>
+        </div>
     </header>
 
     <main id="scroll">
         <div class="thread" id="thread">
             <div class="welcome" id="welcome">
-                Ask me for recommendations or anything about your collection:
-                movies, TV series, books, music, video games and documentaries.
+                <span data-i18n="welcome">Ask me for recommendations or anything about your collection:
+                movies, TV series, books, music, video games and documentaries.</span>
                 <div class="chips">
-                    <button class="chip" type="button">Recommend me a horror movie</button>
-                    <button class="chip" type="button">A science fiction book to read</button>
-                    <button class="chip" type="button">What do I have by Danny Boyle?</button>
-                    <button class="chip" type="button">An RPG for the Game Boy</button>
-                    <button class="chip" type="button">Calm music to work to</button>
-                    <button class="chip" type="button">A documentary about politics</button>
+                    <button class="chip" type="button" data-i18n="chip1">Recommend me a horror movie</button>
+                    <button class="chip" type="button" data-i18n="chip2">A science fiction book to read</button>
+                    <button class="chip" type="button" data-i18n="chip3">What do I have by Danny Boyle?</button>
+                    <button class="chip" type="button" data-i18n="chip4">An RPG for the Game Boy</button>
+                    <button class="chip" type="button" data-i18n="chip5">Calm music to work to</button>
+                    <button class="chip" type="button" data-i18n="chip6">A documentary about politics</button>
                 </div>
             </div>
         </div>
@@ -109,12 +120,12 @@
 
     <footer>
         <form id="form">
-            <textarea id="input" placeholder="Type your message... (Enter to send, Shift+Enter for a new line)" rows="1"></textarea>
-            <select id="category" title="Category">
-                <option value="">Auto (all)</option>
+            <textarea id="input" data-i18n-placeholder="placeholder" placeholder="Type your message... (Enter to send, Shift+Enter for a new line)" rows="1"></textarea>
+            <select id="category" data-i18n-title="category" title="Category">
+                <option value="" data-i18n="auto">Auto (all)</option>
             </select>
-            <button id="send" type="submit">Send</button>
-            <button id="reset" type="button" class="secondary" title="New conversation">New chat</button>
+            <button id="send" type="submit" data-i18n="send">Send</button>
+            <button id="reset" type="button" class="secondary" data-i18n="reset" data-i18n-title="resetTitle" title="New conversation">New chat</button>
         </form>
     </footer>
 
@@ -124,13 +135,100 @@
         const input = document.getElementById('input');
         const sendBtn = document.getElementById('send');
         let history = [];
-        let CATEGORY_LABELS = {};
-        fetch('/api/config').then(r => r.json()).then(cfg => {
-            CATEGORY_LABELS = cfg.categories;
+
+        // ---------- UI language (EN / ES). Answers follow the language of the question. ----------
+        const I18N = {
+            en: {
+                pageTitle: 'Media Catalog Chatbot',
+                title: '🎬📚🎮 Your media catalog',
+                welcome: 'Ask me for recommendations or anything about your collection: movies, TV series, books, music, video games and documentaries.',
+                chip1: 'Recommend me a horror movie',
+                chip2: 'A science fiction book to read',
+                chip3: 'What do I have by Danny Boyle?',
+                chip4: 'An RPG for the Game Boy',
+                chip5: 'Calm music to work to',
+                chip6: 'A documentary about politics',
+                placeholder: 'Type your message... (Enter to send, Shift+Enter for a new line)',
+                category: 'Category',
+                auto: 'Auto (all)',
+                send: 'Send',
+                reset: 'New chat',
+                resetTitle: 'New conversation',
+                searching: 'Searching your catalog…',
+                sources: 'Catalog sources',
+                categoryMeta: 'category',
+                newChat: 'New conversation. What are you in the mood for?',
+                connectionError: 'Connection error',
+                categories: { peliculas: 'Movies', libros: 'Books', series: 'TV series', musica: 'Music', videojuegos: 'Video games', documentales: 'Documentaries' },
+                errors: {
+                    rate_limited: 'Too many requests, please wait a minute.',
+                    quota_exceeded: 'The free daily AI quota of this demo is used up. Please try again tomorrow.',
+                    message_too_long: 'The message is too long.',
+                    internal_error: 'Something went wrong processing the question. Please try again.',
+                },
+            },
+            es: {
+                pageTitle: 'Chatbot del catálogo multimedia',
+                title: '🎬📚🎮 Tu catálogo multimedia',
+                welcome: 'Pídeme recomendaciones o pregúntame lo que quieras de tu colección: películas, series, libros, música, videojuegos y documentales.',
+                chip1: 'Recomiéndame una película de terror',
+                chip2: 'Un libro de ciencia ficción para leer',
+                chip3: '¿Qué tengo de Danny Boyle?',
+                chip4: 'Un juego de rol para Game Boy',
+                chip5: 'Música tranquila para trabajar',
+                chip6: 'Un documental sobre política',
+                placeholder: 'Escribe tu mensaje... (Enter para enviar, Shift+Enter para salto de línea)',
+                category: 'Categoría',
+                auto: 'Auto (todas)',
+                send: 'Enviar',
+                reset: 'Nueva',
+                resetTitle: 'Nueva conversación',
+                searching: 'Buscando en tu catálogo…',
+                sources: 'Fuentes del catálogo',
+                categoryMeta: 'categoría',
+                newChat: 'Nueva conversación. ¿Qué te apetece?',
+                connectionError: 'Error de conexión',
+                categories: { peliculas: 'Películas', libros: 'Libros', series: 'Series', musica: 'Música', videojuegos: 'Videojuegos', documentales: 'Documentales' },
+                errors: {
+                    rate_limited: 'Demasiadas preguntas seguidas, espera un minuto.',
+                    quota_exceeded: 'Se ha agotado la cuota gratuita diaria de IA de esta demo. Vuelve a intentarlo mañana.',
+                    message_too_long: 'El mensaje es demasiado largo.',
+                    internal_error: 'Algo ha fallado al procesar la pregunta. Inténtalo de nuevo.',
+                },
+            },
+        };
+        const storage = {
+            get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+            set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+        };
+        let lang = storage.get('lang') || ((navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en');
+        const t = key => I18N[lang][key] ?? I18N.en[key];
+
+        function fillCategories() {
             const select = document.getElementById('category');
-            for (const [value, label] of Object.entries(cfg.categories)) {
-                select.add(new Option(label, value));
-            }
+            const current = select.value;
+            select.querySelectorAll('option:not([value=""])').forEach(o => o.remove());
+            for (const [value, label] of Object.entries(t('categories'))) select.add(new Option(label, value));
+            select.value = current;
+        }
+
+        function applyLang(next) {
+            lang = I18N[next] ? next : 'en';
+            document.documentElement.lang = lang;
+            document.title = t('pageTitle');
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+            document.querySelectorAll('.lang [data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+            fillCategories();
+        }
+        document.querySelectorAll('.lang [data-lang]').forEach(b => b.addEventListener('click', () => {
+            applyLang(b.dataset.lang);
+            storage.set('lang', lang);
+        }));
+        applyLang(lang);
+
+        fetch('/api/config').then(r => r.json()).then(cfg => {
             document.getElementById('info').textContent =
                 `LLM: ${cfg.model} · embeddings: ${cfg.embedding_model} · Vectorize + D1`;
         }).catch(() => {});
@@ -171,14 +269,14 @@
         function docsHtml(docs) {
             if (!docs || !docs.length) return '';
             const cards = docs.map(d => {
-                const info = [CATEGORY_LABELS[d.category] || d.category, d.year, d.rating ? `★ ${Number(d.rating).toFixed(1)}` : null,
+                const info = [t('categories')[d.category] || d.category, d.year, d.rating ? `★ ${Number(d.rating).toFixed(1)}` : null,
                               `sim ${d.score}`].filter(Boolean).join(' · ');
                 const img = d.poster_url ? `<img src="${esc(d.poster_url)}" alt="" loading="lazy">` : '';
                 return `<div class="doc">${img}<div><div class="t">${esc(d.title)}</div>
                         <div class="i">${esc(info)}</div>
                         ${d.genre ? `<div class="i">${esc(d.genre)}</div>` : ''}</div></div>`;
             }).join('');
-            return `<details><summary>Catalog sources (${docs.length})</summary><div class="docs">${cards}</div></details>`;
+            return `<details><summary>${esc(t('sources'))} (${docs.length})</summary><div class="docs">${cards}</div></details>`;
         }
 
         async function send(text) {
@@ -187,7 +285,7 @@
             addMessage('user', esc(text));
             input.value = '';
             sendBtn.disabled = true;
-            const pending = addMessage('bot typing', 'Searching your catalog…');
+            const pending = addMessage('bot typing', esc(t('searching')));
 
             try {
                 const resp = await fetch('/api/chat', {
@@ -197,22 +295,23 @@
                         message: text,
                         history,
                         category: document.getElementById('category').value || null,
+                        lang,
                     }),
                 });
                 const data = await resp.json();
                 pending.remove();
                 if (data.error) {
-                    addMessage('bot error', esc(data.error));
+                    addMessage('bot error', esc(t('errors')[data.code] || data.error));
                     return;
                 }
                 const meta = `${data.provider} · ${data.elapsed_seconds}s` +
-                             (data.category ? ` · category: ${CATEGORY_LABELS[data.category] || data.category}` : '');
+                             (data.category ? ` · ${t('categoryMeta')}: ${t('categories')[data.category] || data.category}` : '');
                 addMessage('bot', renderMarkdown(data.answer) +
                            `<div class="meta">${esc(meta)}</div>` + docsHtml(data.docs));
                 history.push({role: 'user', content: text}, {role: 'assistant', content: data.answer});
             } catch (e) {
                 pending.remove();
-                addMessage('bot error', `Connection error: ${esc(e.message)}`);
+                addMessage('bot error', `${esc(t('connectionError'))}: ${esc(e.message)}`);
             } finally {
                 sendBtn.disabled = false;
                 input.focus();
@@ -227,7 +326,7 @@
         document.getElementById('reset').addEventListener('click', () => {
             history = [];
             thread.innerHTML = '';
-            addMessage('bot', '<p>New conversation. What are you in the mood for?</p>');
+            addMessage('bot', `<p>${esc(t('newChat'))}</p>`);
         });
         input.focus();
     </script>

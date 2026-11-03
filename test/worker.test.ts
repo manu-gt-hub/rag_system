@@ -191,11 +191,23 @@ describe.skipIf(!existsSync(DATA))("API", () => {
     expect(body.category).toBe("peliculas");
   });
 
-  it("validates input", async () => {
-    expect((await post("/api/query", {})).status).toBe(400);
-    expect((await post("/api/query", { question: "x", category: "comics" })).status).toBe(400);
+  it("validates input and returns stable error codes", async () => {
+    const missing = await post("/api/query", {});
+    expect(missing.status).toBe(400);
+    expect(((await missing.json()) as { code: string }).code).toBe("missing_question");
+    const unknown = await post("/api/query", { question: "x", category: "comics" });
+    expect(((await unknown.json()) as { code: string }).code).toBe("unknown_category");
     const get = await worker.fetch(new Request("https://demo/api/query"), env);
     expect(get.status).toBe(405);
+  });
+
+  it("answers in the UI language when nothing is found", async () => {
+    const ask = async (lang?: string) =>
+      ((await (await post("/api/query", { question: "qwxzvb", lang })).json()) as { answer: string; docs: unknown[] });
+    const es = await ask("es");
+    expect(es.docs).toHaveLength(0);
+    expect(es.answer).toMatch(/^No he encontrado/);
+    expect((await ask()).answer).toMatch(/^I couldn't find/);
   });
 
   it("serves config and health", async () => {
