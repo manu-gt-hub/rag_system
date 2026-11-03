@@ -9,6 +9,7 @@
  */
 
 import type { Env } from "./env";
+import { isQuotaError, QuotaExceededError } from "./generator";
 import { ftsQuery, queryTerms, titleKey } from "./text";
 
 export const EMBEDDING_MODEL = "@cf/baai/bge-m3";
@@ -61,8 +62,13 @@ export function fuse(
 }
 
 export async function embed(env: Env, text: string): Promise<number[]> {
-  const out = (await env.AI.run(EMBEDDING_MODEL, { text: [text] })) as { data: number[][] };
-  return out.data[0];
+  try {
+    const out = (await env.AI.run(EMBEDDING_MODEL, { text: [text] })) as { data: number[][] };
+    return out.data[0];
+  } catch (e) {
+    if (isQuotaError(e)) throw new QuotaExceededError(String(e));
+    throw e;
+  }
 }
 
 export async function search(
