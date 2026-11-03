@@ -89,12 +89,12 @@ describe("header", () => {
 });
 
 describe("language", () => {
-  it("defaults to English and follows a Spanish browser", async () => {
+  it("defaults to English, also in a Spanish browser", async () => {
     await loadPage();
     expect($("h1").textContent).toContain("Your media catalog");
     await loadPage({ browserLang: "es-ES" });
-    expect($("h1").textContent).toContain("Tu catálogo multimedia");
-    expect(document.documentElement.lang).toBe("es");
+    expect($("h1").textContent).toContain("Your media catalog");
+    expect(document.documentElement.lang).toBe("en");
   });
 
   it("switches the whole UI and remembers the choice", async () => {

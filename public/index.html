@@ -136,7 +136,7 @@
         const sendBtn = document.getElementById('send');
         let history = [];
 
-        // ---------- UI language (EN / ES). Answers follow the language of the question. ----------
+        // ---------- UI language (EN / ES, English by default). Answers follow the language of the question. ----------
         const I18N = {
             en: {
                 pageTitle: 'Media Catalog Chatbot',
@@ -201,7 +201,7 @@
             get(k) { try { return localStorage.getItem(k); } catch { return null; } },
             set(k, v) { try { localStorage.setItem(k, v); } catch {} },
         };
-        let lang = storage.get('lang') || ((navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en');
+        let lang = storage.get('lang') || 'en';
         const t = key => I18N[lang][key] ?? I18N.en[key];
 
         function fillCategories() {
