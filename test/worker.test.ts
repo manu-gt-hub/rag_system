@@ -201,6 +201,18 @@ describe.skipIf(!existsSync(DATA))("API", () => {
     expect(get.status).toBe(405);
   });
 
+  it("reports a used-up AI quota as quota_exceeded, also on /api/search (embedding)", async () => {
+    const exhausted = { ...env, AI: { run: async () => { throw new Error("3036: daily free allocation exceeded"); } } } as unknown as Env;
+    for (const path of ["/api/search", "/api/query"]) {
+      const resp = await worker.fetch(
+        new Request(`https://demo${path}`, { method: "POST", body: JSON.stringify({ question: "Danny Boyle" }) }),
+        exhausted,
+      );
+      expect(resp.status).toBe(429);
+      expect(((await resp.json()) as { code: string }).code).toBe("quota_exceeded");
+    }
+  });
+
   it("answers in the UI language when nothing is found", async () => {
     const ask = async (lang?: string) =>
       ((await (await post("/api/query", { question: "qwxzvb", lang })).json()) as { answer: string; docs: unknown[] });

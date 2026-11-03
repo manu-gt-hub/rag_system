@@ -72,14 +72,7 @@ async function handleQuery(request: Request, env: Env, mode: Mode): Promise<Resp
   } else if (!docs.length) {
     answer = NO_RESULTS[lang];
   } else {
-    try {
-      answer = await generate(env, question, docs, history);
-    } catch (e) {
-      if (e instanceof QuotaExceededError) {
-        return fail("quota_exceeded", "The free daily AI quota of this demo is used up. Please try again tomorrow.", 429);
-      }
-      throw e;
-    }
+    answer = await generate(env, question, docs, history);
   }
 
   const scores = docs.map((d) => d.score ?? 0);
@@ -124,6 +117,10 @@ export default {
       try {
         return await handleQuery(request, env, mode);
       } catch (e) {
+        // Raised by the embedding of the question (every mode) or by the answer
+        if (e instanceof QuotaExceededError) {
+          return fail("quota_exceeded", "The free daily AI quota of this demo is used up. Please try again tomorrow.", 429);
+        }
         console.error("Error processing query", e);
         return fail("internal_error", "Internal error processing the question.", 500);
       }

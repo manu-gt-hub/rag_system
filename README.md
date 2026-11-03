@@ -43,8 +43,9 @@ Architecture, diagrams and technology choices: [doc/architecture.md](doc/archite
 
 Every deploy runs a battery of questions against the live demo and scores it
 with the rubrics in [doc/rubrics.md](doc/rubrics.md) (retrieval relevance,
-answer precision, completeness, format). The report is attached to the deploy
-run and the job fails if the thresholds are not met.
+answer precision, completeness, format). The scores are shown in the summary
+of each [Deploy run](https://github.com/manu-gt-hub/rag_system/actions/workflows/deploy.yml),
+the full report is attached to it, and the job fails if the thresholds are not met.
 
 ## Deploy your own (free)
 

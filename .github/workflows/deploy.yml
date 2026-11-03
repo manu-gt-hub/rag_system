@@ -69,8 +69,16 @@ jobs:
         run: |
           url="${{ steps.deploy.outputs.url }}"
           curl -fsS "$url/health"
-          curl -fsS -X POST "$url/api/search" -H "Content-Type: application/json" \
-            -d '{"question": "Danny Boyle"}' | tee search.json
+          code=$(curl -sS -o search.json -w "%{http_code}" -X POST "$url/api/search" \
+            -H "Content-Type: application/json" -d '{"question": "Danny Boyle"}')
+          cat search.json
+          # Search embeds the question with Workers AI: with the free daily quota
+          # used up the deploy is fine, but retrieval cannot be checked until tomorrow
+          if [ "$code" = 429 ] && grep -q quota_exceeded search.json; then
+            echo "::warning::Search not checked: the free daily AI quota is used up"
+            exit 0
+          fi
+          [ "$code" = 200 ] || { echo "Search returned HTTP $code"; exit 1; }
           node -e "const r=require('./search.json'); if (!r.docs?.length) { console.error('No documents retrieved'); process.exit(1) }"
 
   evaluate:

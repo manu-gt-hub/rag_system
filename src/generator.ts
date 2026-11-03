@@ -19,6 +19,9 @@ const MAX_TOKENS = 700;
 
 export class QuotaExceededError extends Error {}
 
+/** Workers AI daily free allocation used up: HTTP 429 / error code 3036 (chat and embedding calls). */
+export const isQuotaError = (e: unknown): boolean => /3036|daily free allocation|429/i.test(String(e));
+
 export function buildContext(docs: RetrievedDoc[]): string {
   return docs
     .map((d, i) => {
@@ -63,8 +66,7 @@ async function workersAi(env: Env, model: string, messages: ChatMessage[]): Prom
     })) as { response?: string };
     return (out.response ?? "").trim();
   } catch (e) {
-    // Daily free allocation used up: HTTP 429 / error code 3036
-    if (/3036|daily free allocation|429/i.test(String(e))) throw new QuotaExceededError(String(e));
+    if (isQuotaError(e)) throw new QuotaExceededError(String(e));
     throw e;
   }
 }
