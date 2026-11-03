@@ -1,7 +1,7 @@
 /**
  * index.ts — Worker entry point and RAG pipeline. Static assets (public/) are
  * served by Cloudflare before reaching this code. API:
- *   POST /api/chat    {message, history?, category?, top_k?}  chat with memory
+ *   POST /api/chat    {message, history?, category?, top_k?, lang?}  chat with memory
  *   POST /api/query   {question, category?, top_k?}           single question
  *   POST /api/search  {question, category?, top_k?}           retrieval only, no LLM
  *   GET  /api/config  LLM, embedding model and category labels for the UI
@@ -19,6 +19,15 @@ const MAX_MESSAGE_CHARS = 1000;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+/** Errors carry a stable `code` so the UI can show them in its own language. */
+const fail = (code: string, error: string, status: number) => json({ error, code }, status);
+
+// Server-generated answer text; LLM answers follow the language of the question
+const NO_RESULTS: Record<string, string> = {
+  en: "I couldn't find anything related in your catalog. Try rephrasing the question or changing the category.",
+  es: "No he encontrado nada relacionado en tu catálogo. Prueba a reformular la pregunta o a cambiar la categoría.",
+};
 
 /** Enrich short follow-up questions with the previous user message. */
 export function buildRetrievalQuery(question: string, history: ChatMessage[]): string {
@@ -41,12 +50,13 @@ const MODES: Record<string, Mode> = { "/api/chat": "chat", "/api/query": "query"
 async function handleQuery(request: Request, env: Env, mode: Mode): Promise<Response> {
   const data = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const question = String(data.question ?? data.message ?? "").trim();
-  if (!question) return json({ error: "The 'question' field is required." }, 400);
-  if (question.length > MAX_MESSAGE_CHARS) return json({ error: "Message too long." }, 400);
+  if (!question) return fail("missing_question", "The 'question' field is required.", 400);
+  if (question.length > MAX_MESSAGE_CHARS) return fail("message_too_long", "Message too long.", 400);
+  const lang = data.lang === "es" ? "es" : "en";
 
   let category = typeof data.category === "string" && data.category ? data.category : null;
   if (category === "todas") category = null;
-  if (category && !CATEGORIES.includes(category)) return json({ error: `Unknown category: ${category}` }, 400);
+  if (category && !CATEGORIES.includes(category)) return fail("unknown_category", `Unknown category: ${category}`, 400);
 
   const t0 = Date.now();
   const history = mode === "chat" ? cleanHistory(data.history) : [];
@@ -60,13 +70,13 @@ async function handleQuery(request: Request, env: Env, mode: Mode): Promise<Resp
   if (mode === "search") {
     // Retrieval only: used by monitoring, spends no LLM quota
   } else if (!docs.length) {
-    answer = "I couldn't find anything related in your catalog. Try rephrasing the question or changing the category.";
+    answer = NO_RESULTS[lang];
   } else {
     try {
       answer = await generate(env, question, docs, history);
     } catch (e) {
       if (e instanceof QuotaExceededError) {
-        return json({ error: "The free daily AI quota of this demo is used up. Please try again tomorrow." }, 429);
+        return fail("quota_exceeded", "The free daily AI quota of this demo is used up. Please try again tomorrow.", 429);
       }
       throw e;
     }
@@ -105,17 +115,17 @@ export default {
     }
     const mode = MODES[pathname];
     if (mode) {
-      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      if (request.method !== "POST") return fail("method_not_allowed", "Method not allowed", 405);
       // Protects the free daily quota (and any API key) from abuse
       const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
       if (env.RATE_LIMITER && !(await env.RATE_LIMITER.limit({ key: ip })).success) {
-        return json({ error: "Too many requests, please slow down." }, 429);
+        return fail("rate_limited", "Too many requests, please slow down.", 429);
       }
       try {
         return await handleQuery(request, env, mode);
       } catch (e) {
         console.error("Error processing query", e);
-        return json({ error: "Internal error processing the question." }, 500);
+        return fail("internal_error", "Internal error processing the question.", 500);
       }
     }
     return env.ASSETS.fetch(request);

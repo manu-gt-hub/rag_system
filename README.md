@@ -106,8 +106,8 @@ Retrieval keeps using Vectorize and `bge-m3`, so no re-indexing is needed.
 
 | Endpoint | Body | Description |
 |---|---|---|
-| `POST /api/chat` | `{"message", "history": [{"role","content"}], "category"?}` | Chat with conversational memory |
-| `POST /api/query` | `{"question", "category"?, "top_k"?}` | Single question |
+| `POST /api/chat` | `{"message", "history": [{"role","content"}], "category"?, "lang"?}` | Chat with conversational memory |
+| `POST /api/query` | `{"question", "category"?, "top_k"?, "lang"?}` | Single question |
 | `POST /api/search` | `{"question", "category"?, "top_k"?}` | Retrieval only (no LLM) |
 | `GET /api/config` | — | Model and category labels |
 | `GET /health` | — | Liveness |
@@ -115,6 +115,15 @@ Retrieval keeps using Vectorize and `bge-m3`, so no re-indexing is needed.
 `category`: `peliculas` (movies), `libros` (books), `series`, `musica` (music),
 `videojuegos` (video games), `documentales` (documentaries); inferred from the
 question when it names exactly one.
+
+`lang` (`en` default, `es`) is the language of the UI: it only affects
+server-written text such as the "nothing found" answer. The LLM always replies
+in the language of the question. Errors include a stable `code`
+(`rate_limited`, `quota_exceeded`, `missing_question`, `unknown_category`,
+`message_too_long`, `internal_error`) so clients can show their own messages.
+
+The chat UI is available in English and Spanish (switcher in the header,
+defaulting to the browser language).
 
 ## Development
 
