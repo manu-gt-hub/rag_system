@@ -72,3 +72,17 @@ Score = (Relevance * 0.30) + (Precision * 0.35) + (Completeness * 0.20) + (Forma
 | Avg. relevance | >= 60% |
 | Avg. precision | >= 65% |
 | No question with | 0% precision |
+
+## How it runs
+
+- Question battery: `evaluation/questions.json` (questions in English; titles
+  as they appear in the Spanish catalog).
+- Scoring: `evaluation/rubrics.ts` implements the four rubrics, the weighted
+  global score and these thresholds.
+- Execution: `npm run evaluate -- --url <live URL>` calls `/api/query` for each
+  question (spaced out to respect the demo's rate limit) and writes
+  `evaluation/results.md`.
+- CI: the deploy workflow evaluates every new deployment, publishes the report
+  as an artifact and in the run summary, and fails the evaluation job when a
+  threshold is not met. If the free daily AI quota is used up, the run is
+  skipped with a warning instead of failing.

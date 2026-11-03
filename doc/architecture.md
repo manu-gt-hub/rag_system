@@ -1,78 +1,77 @@
-# Recommendation chatbot architecture
+# Architecture
 
 This document explains **how** the system works, **which parts** it is made of
 and **why** each technology was chosen. Diagrams use Mermaid, which GitHub
 renders natively.
 
+The design goal is a RAG chatbot that is **always up and free to run**: no
+server to maintain, no database to operate, no API key needed, and deployed
+automatically from `main`.
+
 ---
 
 ## 1. Overview
 
-The user chats with a web chatbot. Each message is turned into a vector
-(embedding), pgvector finds the catalog items closest **in meaning** (and by
-keyword), and an LLM writes the answer using only those items as context. This
-is the **RAG** pattern (Retrieval-Augmented Generation): the LLM does not make
-the catalog up, it reads it.
+```mermaid
+flowchart LR
+    U([User]) -->|message + history| UI[Chat UI<br/>static assets]
+    UI -->|POST /api/chat| W[Worker<br/>TypeScript]
+    W -->|1 embed question| E[Workers AI<br/>bge-m3]
+    W -->|2a vector top 40| V[(Vectorize<br/>1024 d, cosine)]
+    W -->|2b FTS5 + titles| D[(D1<br/>docs + FTS5)]
+    W -->|3 context + question + history| L[Workers AI<br/>Llama 3.3 70B]
+    L -->|answer| W
+    W -->|answer + sources| UI
+```
+
+Each message is turned into a vector, Vectorize finds the catalog items
+closest **in meaning** while D1 finds them **by keyword and title**, and an
+LLM writes the answer using only those items as context. This is the RAG
+pattern (Retrieval-Augmented Generation): the LLM does not make the catalog
+up, it reads it.
+
+Everything runs on Cloudflare's network in a single Worker; static assets
+(the chat UI) are served before the Worker is invoked.
+
+### Delivery pipeline
 
 ```mermaid
 flowchart LR
-    U([User]) -->|message + history| UI[Web UI<br/>Flask + gunicorn]
-    UI --> P[RAG Pipeline]
-    P -->|1 - search text| E[Embeddings<br/>OpenAI or local]
-    E -->|vector| R[Hybrid retriever]
-    R -->|2 - SQL vector + full-text| DB[(PostgreSQL<br/>+ pgvector)]
-    DB -->|top-K documents| R
-    R --> P
-    P -->|3 - context + question + history| G[Generator]
-    G --> LLM[LLM<br/>GPT-4o-mini / Claude]
-    LLM -->|answer| P
-    P -->|answer + sources| UI
+    P[push to main] --> T[Typecheck + tests<br/>catalog in SQLite]
+    T --> I{Catalog signature<br/>changed?}
+    I -->|yes| X[Embed with bge-m3<br/>load Vectorize + D1]
+    I -->|no| DEP
+    X --> DEP[wrangler deploy]
+    DEP --> S[Smoke test<br/>/health + /api/search]
+    S --> EV[Rubric evaluation<br/>on the live URL]
+    M[Every 6 h] --> H[Monitor<br/>/health + /api/search]
 ```
 
-### Deployment (docker compose)
-
-```mermaid
-flowchart TB
-    subgraph host[User's machine]
-        B[Browser<br/>localhost:8000]
-        subgraph compose[docker compose]
-            APP["app (python:3.11-slim)<br/>entrypoint:<br/>1. indexer --if-needed<br/>2. gunicorn src.web_app"]
-            DB[("db<br/>pgvector/pgvector:pg16")]
-            V1[(pgdata volume)]
-            V2[(models volume<br/>local model cache)]
-        end
-        ENV[.env<br/>API keys]
-    end
-    API[(OpenAI / Anthropic API)]
-
-    B --> APP
-    ENV -.-> APP
-    APP -->|SQL| DB
-    DB --- V1
-    APP --- V2
-    APP -->|HTTPS| API
-```
-
-On start, the `app` container checks whether an index built with the current
-embedding model and document format already exists (table `index_meta`). If
-not (first start, provider change or new document version), it indexes the
-catalog; then it serves the web app.
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| `ci.yml` | every push / PR | typecheck and tests, no account needed |
+| `deploy.yml` | push to `main` | test → re-index if needed → deploy → smoke test → evaluation |
+| `monitor.yml` | every 6 hours | synthetic check of the live demo without spending LLM quota |
 
 ---
 
-## 2. Indexing phase (offline)
+## 2. Indexing (build time)
 
 ```mermaid
 flowchart LR
-    J["resources/indexes/*/index.json<br/>(17,310 records)"] --> B[Per-category builders]
-    B -->|group and deduplicate| D["~2,400 documents<br/>semantic text"]
-    D --> E[Batched embeddings]
-    D --> T["'spanish' tsvector<br/>title A · people/genre B · rest D"]
-    E --> I[(documents table)]
-    T --> I
-    I --> H[HNSW cosine index]
-    I --> G[GIN full-text index]
+    J["resources/indexes/*/index.json<br/>(17,310 records)"] --> B[indexer/documents.ts<br/>per-category builders]
+    B -->|group and deduplicate| D["2,423 documents"]
+    D --> S[signature<br/>content + format + model]
+    D --> E[Workers AI REST<br/>bge-m3, batches of 50]
+    E --> V[(Vectorize upsert)]
+    D --> F["build/d1-data.sql<br/>schema + docs + FTS5 + signature"]
+    F --> DB[(D1 execute)]
 ```
+
+`npm run index -- --if-changed` compares the signature with the one stored in
+D1 (`index_meta`) and does nothing when they match, so deploys that do not
+touch the catalog cost no embedding quota. Embeddings are cached per
+signature in `build/`, so a failed load can be retried for free.
 
 ### What a "document" is
 
@@ -91,91 +90,85 @@ Synopsis: El teniente Daniel Kaffee es un joven abogado de la Marina...
 Rating: 7.56/10 (4324 votes)
 ```
 
-Field labels are in English, while the values come from the Spanish catalog.
-Spanish genres get their English translation appended
-(`Genre: Terror, Suspense / horror, thriller`), and English video game genres
-get the Spanish one (`Role-playing (RPG) / rol`), so questions in either
-language match both semantically and by keyword.
+Field labels are in English, values come from the Spanish catalog. Spanish
+genres get their English translation appended
+(`Genre: Terror, Suspense / horror, thriller`) and English video game genres
+the Spanish one (`Role-playing (RPG) / rol`), so questions in either language
+match both semantically and by keyword.
 
 ### Granularity per category
 
-The JSON files have very different granularity. Indexing everything as-is
-would let a single series or discography fill all results, so:
+Indexing the JSON as-is would let a single series or discography fill every
+result, so:
 
 | Category | Records | Documents | Strategy |
 |---|---|---|---|
-| Movies | 476 | ~448 | 1 per title, duplicates merged (the most complete one is kept) |
-| Books | 286 | ~282 | 1 per book (title + author deduplicated); the OCR extract is cut to 1,500 characters |
-| TV series | 1,828 episodes | 17 | **1 per show**: synopsis, cast, seasons and number of episodes |
-| Music | 12,943 tracks | ~262 | **1 per artist/album folder** (tracks have no metadata; the path does) |
-| Video games | 1,745 ROMs | ~1,387 | 1 per title and platform (regional variants merged) |
-| Documentaries | 32 | ~27 | Same as movies |
+| Movies | 476 | 448 | 1 per title, duplicates merged (the most complete one is kept) |
+| Books | 286 | 282 | 1 per book (title + author); the OCR extract is cut to 1,500 characters |
+| TV series | 1,828 episodes | 17 | **1 per show**: synopsis, cast, seasons, number of episodes |
+| Music | 12,943 tracks | 262 | **1 per artist/album folder** (tracks have no metadata; the path does) |
+| Video games | 1,745 ROMs | 1,387 | 1 per title and platform (regional variants merged) |
+| Documentaries | 32 | 27 | Same as movies |
 
 ---
 
-## 3. Query phase (online)
+## 3. Query (runtime)
 
 ```mermaid
 sequenceDiagram
     actor U as User
-    participant W as Web (Flask)
-    participant P as RAG Pipeline
-    participant E as Embeddings
-    participant DB as pgvector
-    participant L as LLM
-
+    participant W as Worker
+    participant AI as Workers AI
+    participant V as Vectorize
+    participant D as D1
     U->>W: "any more recent ones?" + history
-    W->>P: query(message, history, category?)
-    P->>P: short question → joined with the previous one<br/>("horror movies any more recent ones?")
-    P->>P: detect category → peliculas
-    P->>E: embed(search text)
-    E-->>P: vector
-    P->>DB: vector search (top 40) + full-text (top 40) → RRF
-    DB-->>P: top-K documents + similarity
-    P->>L: system prompt + history + context + question
-    L-->>P: recommendation with titles in bold
-    P-->>W: answer + sources + metrics
-    W-->>U: chat bubble + source cards
+    W->>W: short follow-up → joined with previous question<br/>detect category → peliculas
+    par
+        W->>AI: embed (bge-m3)
+        AI-->>W: vector
+        W->>V: query top 40, filter category
+    and
+        W->>D: batch: title match, FTS5 AND, FTS5 OR
+    end
+    W->>W: Reciprocal Rank Fusion → top 5
+    W->>D: fetch the 5 documents
+    W->>AI: system prompt + history + context + question
+    AI-->>W: recommendation, titles in bold
+    W-->>U: answer + sources + metrics
 ```
 
 ### Hybrid search with Reciprocal Rank Fusion
 
-A single SQL query computes two rankings and fuses them:
+Three candidate lists are fused in the Worker:
 
-1. **Vector**: `ORDER BY embedding <=> query_vector` (cosine distance, HNSW
-   index). Captures *meaning*: "something scary" ≈ "Terror, Suspense".
-2. **Full-text**: `tsv @@ to_tsquery('spanish', 'danny | boyle')`, weighted
-   (title > people/genre > synopsis), with documents containing *all* the terms
-   ranked first. Captures *exact names*, where embeddings of short questions are
-   not precise.
-3. **RRF fusion**: `score = 1/(60 + vector_rank) + 1/(60 + text_rank)`, plus a
-   bonus equal to a first place when a document contains every term of a
-   multi-term query, and a double bonus when the question contains a whole
-   catalog title ("What rating does *Algunos hombres buenos* have?", whose words
-   would otherwise be dropped as Spanish stopwords). No need to calibrate different score scales, and a
-   document ranked high in both lists rises to the top.
+1. **Vector** (Vectorize, cosine): captures *meaning*, "something scary" ≈
+   "Terror, Suspense".
+2. **Full-text** (D1 FTS5, `bm25` weighted title > people/genre > content):
+   captures *exact names*, where embeddings of short questions are imprecise.
+   Documents containing *all* terms rank first. SQLite has no Spanish stemmer,
+   so longer terms become prefix queries (`"pelicula"*`).
+3. **Title match**: documents whose whole title appears in the question
+   ("What rating does *Algunos hombres buenos* have?"), whose words would
+   otherwise be dropped as Spanish stopwords.
 
-Results below `SIMILARITY_THRESHOLD` cosine similarity are dropped unless they
-matched by keyword.
+`score = 1/(60 + vector_rank) + 1/(60 + text_rank)`, plus a bonus worth a
+first place when a document contains every term of a multi-term query, and a
+double bonus for a title match. No need to calibrate score scales, and a
+document high in several lists rises to the top. Vector-only results below
+`SIMILARITY_THRESHOLD` are dropped; keyword matches are kept.
 
 ### Conversational memory
 
-- The browser keeps the history and sends it with every message to `/api/chat`.
-- The LLM receives the last `CHAT_HISTORY_MESSAGES` messages, so it understands references ("the second one you mentioned").
-- For **retrieval**, a message with 3 meaningful terms or fewer is joined with the user's previous question. New, complete questions are searched on their own so the previous topic does not leak in.
+- The browser keeps the history and sends it with each message to `/api/chat`.
+- The LLM receives the last 6 messages, so it understands references ("the second one").
+- For **retrieval**, a message with 3 meaningful terms or fewer is joined with the previous user question; complete new questions are searched on their own so the previous topic does not leak in.
 
-### Category detection
+### Category detection and language
 
 If the question names exactly one category ("movie", "book", "play",
-"songs", or their Spanish equivalents), results are filtered by it. If it names
-several or none, the whole catalog is searched. The UI selector forces a
-category.
-
-### Language
-
-The bot answers in the language of the question (English by default) and
-never translates titles. Search understands both English and Spanish: stopword
-and category lists cover both languages, and genres are stored bilingually.
+"songs", or their Spanish equivalents) results are filtered by it, using a
+Vectorize metadata index and a D1 column. The bot answers in the language of
+the question and never translates titles.
 
 ---
 
@@ -183,15 +176,16 @@ and category lists cover both languages, and genres are stored bilingually.
 
 | Component | Choice | Why | Discarded alternatives |
 |---|---|---|---|
-| Vector store | **PostgreSQL + pgvector** | One database for vectors, metadata (JSONB) and Spanish full-text search, all in the **same SQL query**. Official Docker image, HNSW index, no extra services. | Pinecone/Weaviate (external service or one more container, no built-in Spanish full-text); FAISS (in-memory, no persistence or SQL filters) |
-| ANN index | **HNSW** | Better recall/latency than IVFFlat and can be built on the loaded table without training lists. With ~2,400 rows it is nearly exact. | IVFFlat (`lists=100` built on an empty table gives poor recall) |
-| Embeddings (with OpenAI) | **text-embedding-3-small** (1536 d) | Multilingual, very good quality across English and Spanish, cheap (indexing the whole catalog costs cents). | text-embedding-3-large (more expensive, marginal gain at this size) |
-| Embeddings (without OpenAI) | **fastembed + paraphrase-multilingual-MiniLM-L12-v2** (384 d) | Anthropic has no embeddings API. This model is multilingual, runs on CPU with ONNX (no PyTorch or GPU), weighs ~220 MB and is cached in a volume. It lets the system work with only an Anthropic key. | sentence-transformers + PyTorch (multi-GB image); Voyage AI (yet another key) |
-| LLM | **GPT-4o-mini** or **Claude Haiku 4.5** | Fast, cheap models, good enough to write recommendations from an already filtered context. Switched with `LLM_PROVIDER`. | Larger models: more latency and cost with no noticeable gain here |
-| Web | **Flask + gunicorn** | Minimal code: one page and two JSON endpoints. gunicorn serves it reliably in Docker. | FastAPI (valid, but adds nothing here); Streamlit (less control over the chat UI) |
-| Front end | **Vanilla HTML + JS** | No build step or dependencies: served as a Flask template. | React/Vue (need a toolchain) |
-| Orchestration | **docker compose** | `docker compose up` starts the database, indexes and serves the app: nothing to install except Docker. | Manual scripts (depend on the user's OS) |
-| No RAG framework | Own code | The flow is short (embed → SQL → prompt) and stays explicit and easy to evaluate. | LangChain/LlamaIndex (abstraction layers and dependencies for 4 steps) |
+| Hosting | **Cloudflare Workers** (static assets + Worker) | Free tier with 100k requests/day, no cold-start servers, global edge, UI and API in one deployable. Pages is in maintenance mode; Cloudflare recommends Workers for new projects. | VPS/containers (cost and maintenance); Vercel/Netlify functions (no integrated vector DB or free inference) |
+| Language | **TypeScript** | Native runtime for Workers; the request path is I/O orchestration that fits the free plan's 10 ms CPU limit. | Python Workers (Pyodide: heavier CPU per request, little headroom at 10 ms) |
+| Vector store | **Vectorize** | Managed, free tier fits the catalog (2.5 M of 5 M dimensions), metadata filtering, binding with no credentials. | pgvector (needs a PostgreSQL to run and pay for); Pinecone (external account and network hop) |
+| Keyword search + documents | **D1 with FTS5** | Vectorize has no full-text search. D1 is SQLite with FTS5 and `bm25`, free, and its queries are batched in one call. | Keyword search in the Worker (CPU limit); KV (no querying) |
+| Embeddings | **bge-m3** on Workers AI | Multilingual (Spanish catalog, English questions), 8k-token context, 1024 d; indexing the whole catalog costs ~10% of one day's free Neurons. | OpenAI embeddings (API key and cost); small local models (128-token context, weaker cross-language) |
+| LLM | **Llama 3.3 70B** (fp8-fast) on Workers AI | Free daily allocation, good instruction following and multilingual answers. OpenAI / Anthropic can be switched on with a Worker secret. | Smaller free models (cheaper per answer, noticeably worse recommendations) |
+| Abuse protection | **Workers Rate Limiting** binding | 10 questions/min per IP protects the shared free quota (and any API key). | Turnstile (friction for a demo) |
+| Framework | **None** (plain Worker) | Five routes; the RAG flow (embed → search → prompt) stays explicit and testable. | Hono/itty-router (unneeded); LangChain (abstraction for four steps) |
+| Tests | **Vitest + Node's built-in SQLite** | The real `schema.sql` and catalog are loaded into SQLite (which has FTS5), with Vectorize and Workers AI faked, so retrieval logic is tested without an account. | Miniflare-only tests (no Vectorize/AI emulation) |
+| Delivery | **GitHub Actions + wrangler** | Deploy on push, re-index only on catalog changes, evaluate the live demo, monitor every 6 h. | Manual deploys |
 
 ---
 
@@ -199,26 +193,35 @@ and category lists cover both languages, and genres are stored bilingually.
 
 ```mermaid
 erDiagram
-    documents {
-        serial id PK
+    docs ||--|| docs_fts : "rowid = id"
+    docs ||--|| vector : "id = vector id"
+    docs {
+        int id PK
         text category "peliculas | libros | series | musica | videojuegos | documentales"
         text title
-        text title_key "normalized title, matched inside questions"
         text content "text that is embedded and passed to the LLM"
-        jsonb metadata "year, genre, rating, poster_url, file..."
-        tsvector tsv "'spanish' full-text, weighted A/B/D"
-        vector embedding "1536 (OpenAI) or 384 (local)"
+        text metadata "JSON: year, genre, rating, poster_url..."
+        text title_key "normalized title, matched inside questions"
+    }
+    docs_fts {
+        text title "weight 10"
+        text keywords "people, genres - weight 5"
+        text content "weight 1"
+    }
+    vector {
+        string id
+        float values "1024 (bge-m3)"
+        string category "metadata index"
     }
     index_meta {
-        text signature "provider:model:dimension:docs-vN"
+        text signature "catalog + format + model"
         int documents
-        timestamptz indexed_at
+        text indexed_at
     }
 ```
 
-`index_meta.signature` lets the container know whether the existing index is
-compatible with the configured model and document format; if not, it
-re-indexes automatically.
+`docs` and `docs_fts` live in D1, `vector` in Vectorize. `index_meta` tells
+the deploy workflow whether the loaded index matches the repository.
 
 ---
 
@@ -226,32 +229,45 @@ re-indexes automatically.
 
 | Module | Responsibility |
 |---|---|
-| `src/config.py` | Reads `.env`; auto-detects LLM and embedding providers from the keys present |
-| `src/text_utils.py` | Normalization (accents), meaningful query terms, category detection |
-| `src/embeddings.py` | `EmbeddingService`: OpenAI or local (fastembed) backend |
-| `src/indexer.py` | JSON → documents → embeddings → pgvector (+ HNSW/GIN indexes) |
-| `src/retriever.py` | Hybrid vector + full-text search with RRF |
-| `src/generator.py` | Recommendation prompt + OpenAI/Anthropic call with history |
-| `src/rag_pipeline.py` | Orchestrates: search text, category, retrieve, generate, metrics |
-| `src/web_app.py` | Chat UI, `/api/chat` (with memory) and `/api/query` (single question) |
-| `tests/test_unit.py` | Fast tests without keys or database |
-| `tests/test_rag_ci.py`, `tests/run_evaluation.py` | Rubric evaluation (`doc/rubrics.md`) against the real pipeline |
+| `src/index.ts` | Routes, input validation, rate limiting, RAG pipeline (follow-ups, category, retrieve, generate) |
+| `src/retriever.ts` | Embedding, Vectorize + D1 queries in parallel, RRF fusion |
+| `src/generator.ts` | Prompt assembly; Workers AI, OpenAI or Anthropic; quota handling |
+| `src/text.ts` | Normalization, stopwords (Spanish + English), category detection, FTS5 queries |
+| `indexer/documents.ts` | Catalog JSON → semantic documents |
+| `indexer/index-catalog.ts` | Signature, embeddings, Vectorize + D1 load |
+| `evaluation/` | Question battery, rubrics (`doc/rubrics.md`), evaluator against a live URL |
+| `scripts/setup.ts` | Idempotent creation of D1 and Vectorize |
 
 ---
 
-## 7. Known limitations
+## 7. Free tier and limits
+
+| Resource | Free allowance | This project |
+|---|---|---|
+| Workers requests | 100,000 / day | — |
+| Worker CPU | 10 ms / request (waiting on I/O does not count) | orchestration only |
+| Vectorize stored dimensions | 5 M | 2,423 × 1,024 ≈ 2.5 M |
+| Vectorize queried dimensions | 30 M / month | ≈ 26,000 questions / month |
+| Workers AI | 10,000 Neurons / day | indexing ≈ 1,000 (only when the catalog changes); ≈ 120 per answer → ~70 answers/day |
+| D1 | 5 GB storage, 5 M rows read / day | ≈ 7 MB |
+
+When a free allowance is exhausted the request fails with a clear message;
+nothing is billed. The answer budget is the real constraint: the rate limit
+keeps one visitor from using it all, and monitoring uses retrieval-only
+requests that cost almost no Neurons.
+
+---
+
+## 8. Known limitations
 
 - Quality depends on the JSON metadata: ~94 movies and most video games have no
   synopsis, and some series have wrong TMDB metadata (e.g. *Cosmos*), so they
   are retrieved mostly by title and genre.
-- Music has no per-track genre; it is retrieved by collection name, artist,
-  album and track titles.
-- Synopses are in Spanish. With the local model, English questions match them
-  less reliably than Spanish ones (the bilingual genres help); OpenAI
-  embeddings handle cross-language matching much better.
-- Documents are not chunked: each catalog item is a recommendation unit and
-  long texts are truncated.
-- The local model only embeds the first ~128 tokens of each document (title,
-  year, genre, author/director, cast and the start of the synopsis, which is
-  why metadata comes first). OpenAI's limit is 8,191 tokens, so retrieval
-  quality is higher: if you have both keys, use OpenAI embeddings.
+- Music has no per-track genre; it is retrieved by collection, artist, album
+  and track titles.
+- FTS5 has no Spanish stemming; prefix queries cover plurals but not every
+  inflection (the vector search covers the rest).
+- ~70 free answers per day. For more, switch `LLM_PROVIDER` to OpenAI or
+  Anthropic with a Worker secret.
+- Re-indexing replaces the D1 tables in one load: for a few seconds during a
+  catalog update, keyword search may return fewer results.
