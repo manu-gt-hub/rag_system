@@ -10,6 +10,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Typecheck, tests & build
@@ -30,3 +33,29 @@ jobs:
       # deploying, so bundling or config errors fail the PR instead of the deploy
       - name: Build Worker (dry run)
         run: npx wrangler deploy --dry-run --outdir dist
+
+  # Supply chain: known vulnerabilities in any dependency, and secrets committed
+  # at any point of the history
+  security:
+    name: Dependencies & secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks scans the whole history
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # Fails on high or critical advisories
+      - name: npm audit
+        run: npm audit --audit-level=high
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
