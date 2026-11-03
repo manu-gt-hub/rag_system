@@ -67,10 +67,12 @@ async function embedBatch(texts: string[]): Promise<number[][]> {
     });
     if (resp.ok) return ((await resp.json()) as { result: { data: number[][] } }).result.data;
     const detail = await resp.text();
-    if (attempt >= 3 || (resp.status < 500 && resp.status !== 429)) {
-      throw new Error(`Workers AI ${resp.status}: ${detail}`);
-    }
-    await new Promise((r) => setTimeout(r, 2000 * attempt));
+    // 409 "Cog prediction failed" (code 8007) is a transient inference error,
+    // seen on the first calls while the model warms up; retry it like 429/5xx
+    const retryable = resp.status === 409 || resp.status === 429 || resp.status >= 500;
+    if (attempt >= 5 || !retryable) throw new Error(`Workers AI ${resp.status}: ${detail}`);
+    console.warn(`Workers AI ${resp.status}, retrying (${attempt}/4)...`);
+    await new Promise((r) => setTimeout(r, 3000 * attempt));
   }
 }
 

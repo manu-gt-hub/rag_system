@@ -6,7 +6,7 @@ Retrieval-Augmented Generation (RAG) system that runs entirely on Cloudflare's
 free plan: no servers, no database to operate, no API key required, and it is
 deployed automatically on every push.
 
-**Live demo:** `https://rag-catalog.<your-subdomain>.workers.dev` <!-- replace after the first deploy -->
+**Live demo:** https://rag-catalog.mgutierrezt.workers.dev
 
 [![CI](https://github.com/manu-gt-hub/rag_system/actions/workflows/ci.yml/badge.svg)](https://github.com/manu-gt-hub/rag_system/actions/workflows/ci.yml)
 [![Deploy](https://github.com/manu-gt-hub/rag_system/actions/workflows/deploy.yml/badge.svg)](https://github.com/manu-gt-hub/rag_system/actions/workflows/deploy.yml)

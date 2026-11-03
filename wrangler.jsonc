@@ -22,7 +22,7 @@
       "binding": "DB",
       "database_name": "rag-catalog",
       // Paste the id printed by: npx wrangler d1 create rag-catalog
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "38bd9263-5279-45b6-bd76-90705d609e6a"
     }
   ],
   // 10 questions per minute per IP: protects the free daily AI quota
