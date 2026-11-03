@@ -41,9 +41,10 @@ Architecture, diagrams and technology choices: [doc/architecture.md](doc/archite
 
 ## Quality is measured, not assumed
 
-Every deploy runs a battery of questions against the live demo and scores it
-with the rubrics in [doc/rubrics.md](doc/rubrics.md) (retrieval relevance,
-answer precision, completeness, format). The scores are shown in the summary
+Every deploy that can change answer quality (code, indexer, catalog,
+evaluation or Worker config) runs a battery of questions against the live demo
+and scores it with the rubrics in [doc/rubrics.md](doc/rubrics.md) (retrieval
+relevance, answer precision, completeness, format). The scores are shown in the summary
 of each [Deploy run](https://github.com/manu-gt-hub/rag_system/actions/workflows/deploy.yml),
 the full report is attached to it, and the job fails if the thresholds are not met.
 
@@ -75,7 +76,7 @@ written by `npm run setup`. From then on every push to `main`:
 | Index | Re-embeds and reloads **only if** the catalog, document format or model changed |
 | Deploy | `wrangler deploy` |
 | Smoke test | `/health` and a retrieval query against the live URL |
-| Evaluate | Rubric evaluation on the live demo, report as artifact |
+| Evaluate | Rubric evaluation on the live demo, report as artifact. Only when `src/`, `indexer/`, `resources/`, `evaluation/`, `schema.sql` or `wrangler.jsonc` changed (it spends ~1,300 Neurons), or on a manual run |
 
 Set the repository variable `DEMO_URL` to enable the 6-hourly health check
 (`monitor.yml`).
@@ -89,9 +90,11 @@ Set the repository variable `DEMO_URL` to enable the 6-hourly health check
 | Workers AI | 10,000 Neurons/day | ~120 per answer → **~70 answers/day**; retrieval-only checks are almost free |
 | D1 | 5 GB | ~7 MB |
 
-Nothing is ever billed: when the daily AI allocation runs out the API answers
-with a clear message until the next day. A rate limit (10 questions/minute per
-IP) protects the quota.
+Nothing is ever billed. When the daily AI allocation runs out (it resets at
+00:00 UTC), search keeps working from D1 alone (keywords and titles, reported
+as `"retrieval": "keyword_only"`) and answers return a clear `quota_exceeded`
+message until the reset. A rate limit (10 questions/minute per IP) protects
+the quota.
 
 ### Better answers with OpenAI or Anthropic (optional)
 

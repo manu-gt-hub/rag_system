@@ -64,7 +64,7 @@ async function handleQuery(request: Request, env: Env, mode: Mode): Promise<Resp
   category ??= detectCategory(retrievalQuery);
   const topK = Math.min(Number(data.top_k) || Number(env.TOP_K) || 5, 10);
 
-  const docs = await search(env, retrievalQuery, category, topK, Number(env.SIMILARITY_THRESHOLD));
+  const { docs, keywordOnly } = await search(env, retrievalQuery, category, topK, Number(env.SIMILARITY_THRESHOLD));
   const { provider, model } = activeProvider(env);
   let answer: string | null = null;
   if (mode === "search") {
@@ -83,6 +83,8 @@ async function handleQuery(request: Request, env: Env, mode: Mode): Promise<Resp
     provider: `${provider} (${model})`,
     category,
     retrieval_query: retrievalQuery,
+    // "keyword_only" when the AI quota is used up and only D1 was searched
+    retrieval: keywordOnly ? "keyword_only" : "hybrid",
     top_score: scores.length ? Math.max(...scores) : 0,
     num_docs_retrieved: docs.length,
     docs: docs.map((d) => ({

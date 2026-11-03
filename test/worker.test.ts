@@ -132,7 +132,7 @@ export function fakeEnv(vectorMatches: { id: string; score: number }[] = []): En
 describe.skipIf(!existsSync(DATA))("search (keyword side, real catalog)", () => {
   const env = fakeEnv();
   const titles = async (q: string, cat: string | null = null) =>
-    (await search(env, q, cat, 5, 0.35)).map((d) => d.title);
+    (await search(env, q, cat, 5, 0.35)).docs.map((d) => d.title);
 
   it("finds a director's movies by name", async () => {
     expect(await titles("What do I have by Danny Boyle?")).toContain("28 años después");
@@ -148,16 +148,30 @@ describe.skipIf(!existsSync(DATA))("search (keyword side, real catalog)", () => 
   });
 
   it("filters by category", async () => {
-    const docs = await search(env, "Nicolas Cage", "peliculas", 5, 0.35);
+    const { docs } = await search(env, "Nicolas Cage", "peliculas", 5, 0.35);
     expect(docs.length).toBeGreaterThan(0);
     expect(docs.every((d) => d.category === "peliculas")).toBe(true);
   });
 
   it("merges vector matches with keyword matches", async () => {
     const withVectors = fakeEnv([{ id: "1", score: 0.9 }]);
-    const docs = await search(withVectors, "Danny Boyle", null, 5, 0.35);
+    const { docs, keywordOnly } = await search(withVectors, "Danny Boyle", null, 5, 0.35);
     expect(docs[0].id).toBe(1); // in both lists
     expect(docs[0].score).toBe(0.9);
+    expect(keywordOnly).toBe(false);
+  });
+
+  it("falls back to keyword search when the AI quota is used up", async () => {
+    const exhausted = { ...env, AI: { run: async () => { throw new Error("3036: daily free allocation exceeded"); } } } as unknown as Env;
+    const { docs, keywordOnly } = await search(exhausted, "Danny Boyle", null, 5, 0.35);
+    expect(keywordOnly).toBe(true);
+    expect(docs.map((d) => d.title)).toContain("28 años después");
+    expect(docs.every((d) => d.score === null && d.keywordHit)).toBe(true);
+  });
+
+  it("still fails on errors other than the quota", async () => {
+    const broken = { ...env, AI: { run: async () => { throw new Error("network down"); } } } as unknown as Env;
+    await expect(search(broken, "Danny Boyle", null, 5, 0.35)).rejects.toThrow("network down");
   });
 });
 
@@ -201,16 +215,27 @@ describe.skipIf(!existsSync(DATA))("API", () => {
     expect(get.status).toBe(405);
   });
 
-  it("reports a used-up AI quota as quota_exceeded, also on /api/search (embedding)", async () => {
+  it("keeps search up when the AI quota is used up, and reports it on answers", async () => {
     const exhausted = { ...env, AI: { run: async () => { throw new Error("3036: daily free allocation exceeded"); } } } as unknown as Env;
-    for (const path of ["/api/search", "/api/query"]) {
-      const resp = await worker.fetch(
-        new Request(`https://demo${path}`, { method: "POST", body: JSON.stringify({ question: "Danny Boyle" }) }),
-        exhausted,
-      );
-      expect(resp.status).toBe(429);
-      expect(((await resp.json()) as { code: string }).code).toBe("quota_exceeded");
-    }
+    const call = (path: string) =>
+      worker.fetch(new Request(`https://demo${path}`, { method: "POST", body: JSON.stringify({ question: "Danny Boyle" }) }), exhausted);
+
+    // Search degrades to keyword-only retrieval instead of failing
+    const search = await call("/api/search");
+    expect(search.status).toBe(200);
+    const body = (await search.json()) as { retrieval: string; docs: unknown[] };
+    expect(body.retrieval).toBe("keyword_only");
+    expect(body.docs.length).toBeGreaterThan(0);
+
+    // An answer needs the LLM, which has no quota either
+    const query = await call("/api/query");
+    expect(query.status).toBe(429);
+    expect(((await query.json()) as { code: string }).code).toBe("quota_exceeded");
+  });
+
+  it("reports hybrid retrieval when vectors are available", async () => {
+    const body = (await (await post("/api/search", { question: "Danny Boyle" })).json()) as { retrieval: string };
+    expect(body.retrieval).toBe("hybrid");
   });
 
   it("answers in the UI language when nothing is found", async () => {

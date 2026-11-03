@@ -2,6 +2,9 @@
 # only), so it spends no LLM quota. GitHub emails the repository owner when a
 # scheduled run fails.
 #
+# A used-up free daily AI quota is not an outage: search keeps answering from
+# D1 (keyword-only) and the run passes with a warning.
+#
 # Repository variable: DEMO_URL (e.g. https://rag-catalog.<subdomain>.workers.dev)
 name: Monitor
 
@@ -9,6 +12,9 @@ on:
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -24,8 +30,24 @@ jobs:
             exit 0
           fi
           curl -fsS --retry 3 --retry-delay 10 "$DEMO_URL/health"
-          docs=$(curl -fsS --retry 3 --retry-delay 10 -X POST "$DEMO_URL/api/search" \
-            -H "Content-Type: application/json" -d '{"question": "horror movie"}' \
-            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).docs.length))")
-          echo "Documents retrieved: $docs"
-          [ "$docs" -gt 0 ]
+          code=$(curl -sS --retry 3 --retry-delay 10 -o search.json -w "%{http_code}" -X POST "$DEMO_URL/api/search" \
+            -H "Content-Type: application/json" -d '{"question": "horror movie"}')
+          echo "HTTP $code"
+          node -e '
+            const r = JSON.parse(require("fs").readFileSync("search.json", "utf8"));
+            const quota = "::warning title=AI quota used up::";
+            if (process.argv[1] !== "200") {
+              // Deployments without keyword-only fallback answer 429 quota_exceeded
+              if (process.argv[1] === "429" && r.code === "quota_exceeded") {
+                console.log(quota + "Search could not run until the daily quota resets (00:00 UTC).");
+                process.exit(0);
+              }
+              console.error(`Search failed: HTTP ${process.argv[1]} ${JSON.stringify(r)}`);
+              process.exit(1);
+            }
+            console.log(`Documents retrieved: ${r.docs.length} (${r.retrieval ?? "hybrid"})`);
+            if (!r.docs.length) { console.error("No documents retrieved"); process.exit(1); }
+            if (r.retrieval === "keyword_only") {
+              console.log(quota + "Search is answering from D1 only (keyword) until the daily quota resets (00:00 UTC).");
+            }
+          ' "$code"
