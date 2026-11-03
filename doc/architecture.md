@@ -184,7 +184,7 @@ the question and never translates titles.
 | LLM | **Llama 3.3 70B** (fp8-fast) on Workers AI | Free daily allocation, good instruction following and multilingual answers. OpenAI / Anthropic can be switched on with a Worker secret. | Smaller free models (cheaper per answer, noticeably worse recommendations) |
 | Abuse protection | **Workers Rate Limiting** binding | 10 questions/min per IP protects the shared free quota (and any API key). | Turnstile (friction for a demo) |
 | Framework | **None** (plain Worker) | Five routes; the RAG flow (embed → search → prompt) stays explicit and testable. | Hono/itty-router (unneeded); LangChain (abstraction for four steps) |
-| Tests | **Vitest + Node's built-in SQLite** | The real `schema.sql` and catalog are loaded into SQLite (which has FTS5), with Vectorize and Workers AI faked, so retrieval logic is tested without an account. | Miniflare-only tests (no Vectorize/AI emulation) |
+| Tests | **Vitest + Node's built-in SQLite** | The real `schema.sql` and catalog are loaded into SQLite (which has FTS5), with Vectorize and Workers AI faked, so retrieval logic is tested without an account. The chat UI runs in happy-dom against a fake API, and CI bundles the Worker with `wrangler deploy --dry-run`. | Miniflare-only tests (no Vectorize/AI emulation); browser E2E (slower, needs a deployed demo) |
 | Delivery | **GitHub Actions + wrangler** | Deploy on push, re-index only on catalog changes, evaluate the live demo, monitor every 6 h. | Manual deploys |
 
 ---

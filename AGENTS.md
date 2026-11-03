@@ -83,7 +83,8 @@ Detailed architecture, diagrams and technology rationale: `doc/architecture.md`.
 1. **Defined rubrics** in `doc/rubrics.md` — relevance, precision,
    completeness and format, with acceptance thresholds.
 2. **Test suite** — `evaluation/questions.json` for quality; `test/` (vitest)
-   for code, including retrieval against the real catalog in SQLite.
+   for code, including retrieval against the real catalog in SQLite and the
+   chat UI running in happy-dom (language switch, escaping, chat round trip).
 3. **Automated evaluation** — every deploy evaluates the live demo and fails
    the evaluation job under thresholds.
 4. **Versioned results** — each run publishes `evaluation/results.md` as a CI

@@ -70,7 +70,7 @@ written by `npm run setup`. From then on every push to `main`:
 
 | Step | What happens |
 |---|---|
-| Test | Typecheck + 33 tests (real catalog in SQLite, no account needed) |
+| Test | Typecheck + tests (retrieval on the real catalog in SQLite, chat UI in happy-dom) + Worker build, no account needed |
 | Index | Re-embeds and reloads **only if** the catalog, document format or model changed |
 | Deploy | `wrangler deploy` |
 | Smoke test | `/health` and a retrieval query against the live URL |
@@ -148,7 +148,7 @@ npm run evaluate -- --url https://rag-catalog.<subdomain>.workers.dev
 ├── scripts/             setup (resources) and wrangler helper
 ├── public/index.html    chat UI
 ├── schema.sql           D1 schema
-├── test/                vitest suites
+├── test/                vitest suites (indexer, retrieval, API, rubrics, UI)
 ├── resources/indexes/   catalog data (JSON per category)
 ├── doc/                 architecture and rubrics
 └── .github/workflows/   ci, deploy, monitor

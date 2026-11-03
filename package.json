@@ -8,13 +8,14 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev --remote",
     "evaluate": "tsx evaluation/evaluate.ts",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.dom.json",
     "pretest": "tsx indexer/index-catalog.ts --build-only",
     "test": "vitest run"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261102.1",
     "@types/node": "^22.19.0",
+    "happy-dom": "^21.0.4",
     "tsx": "^4.20.0",
     "typescript": "^5.6.3",
     "vitest": "^3.2.4",

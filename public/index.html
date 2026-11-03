@@ -229,8 +229,9 @@
         applyLang(lang);
 
         fetch('/api/config').then(r => r.json()).then(cfg => {
-            document.getElementById('info').textContent =
-                `LLM: ${cfg.model} · embeddings: ${cfg.embedding_model} · Vectorize + D1`;
+            document.getElementById('info').innerHTML =
+                `<strong>LLM:</strong> ${esc(cfg.model)} · <strong>embeddings:</strong> ${esc(cfg.embedding_model)} · ` +
+                `<strong>Storage:</strong> Vectorize + D1`;
         }).catch(() => {});
 
         const esc = s => String(s ?? '').replace(/[&<>"']/g, c => (
